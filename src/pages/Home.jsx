@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase.js";
 import { ProductCard } from "../components/ProductCard.jsx";
-import { LogoMark } from "../components/Navbar.jsx";
 
 const CAT_ICONS = {
   "Botanical Extracts":"🌿","Herbal Powders":"🌱","Fruit Powders":"🍊",
@@ -112,7 +111,6 @@ export default function Home({ lang, cart, onAddToCart }) {
   const [ctaForm, setCtaForm]       = useState({ company:"", product:"", email:"" });
   const [ctaSubmitting, setCtaSubmitting] = useState(false);
   const [ctaDone, setCtaDone]       = useState(false);
-  const navigate = typeof window !== "undefined" ? null : null;
   const t = T[lang] || T.EN;
 
   useEffect(() => {
