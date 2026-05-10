@@ -15,14 +15,21 @@ const CAT_ICONS = {
 
 const T = {
   EN: {
-    eyebrow: "Trusted B2B Nutraceutical Platform",
-    h1a: "Source Premium",
-    h1b: "Nutraceutical Ingredients",
-    h1c: "Globally",
-    sub: "Connect with verified manufacturers across India, China and the EU. Browse 500+ ingredients and receive commercial quotations within 48 hours.",
+    eyebrow: "⚡ The Nutraceutical Superfactory",
+    h1a: "Premium Nutraceutical Ingredients",
+    h1b: "Sourced from the World's",
+    h1c: "Best Factories",
+    sub: "From Ashwagandha in India to Colostrum in New Zealand — we source, verify and deliver. One platform, 500+ ingredients, 6 regions. 200+ brands trust us.",
     search: "Search by ingredient name, CAS number or category…",
     searchBtn: "Search",
-    trust1: "ISO Certified Suppliers", trust2: "CoA & TDS Available", trust3: "48h Quote Turnaround", trust4: "Global Shipping",
+    trust1: "North America & Europe", trust2: "Middle East & Africa", trust3: "India & China", trust4: "48h Quote Turnaround",
+    sfTitle: "Why brands call us their Superfactory",
+    sfSub: "One platform. 500+ ingredients. 6 regions.",
+    sfDesc: "We consolidate sourcing from India, China, Europe, North America, Middle East and Africa — so you don't have to chase multiple suppliers, negotiate separately, or worry about documentation.",
+    sf1: "Single point of contact", sf1d: "One team handles sourcing, documentation and logistics across all regions.",
+    sf2: "Verified factories only", sf2d: "Every supplier is pre-vetted. CoA, TDS and MSDS always provided.",
+    sf3: "48h quotations", sf3d: "Submit an enquiry today and receive a competitive commercial quotation within 48 hours.",
+    sf4: "6 global regions", sf4d: "North America, Europe, Middle East, Africa, India and China — all covered.",
     cats: "Browse by Category", catSub: "20 categories · 500+ active ingredients", viewAll: "View all →",
     featured: "Featured Products", featSub: "Live from our catalogue",
     how: "How It Works", howSub: "From discovery to delivery in four simple steps",
@@ -37,14 +44,21 @@ const T = {
     f1: "Auto-account creation", f2: "OTP login to track", f3: "Reply within 48 hours",
   },
   FR: {
-    eyebrow: "Plateforme B2B de Nutraceutique",
-    h1a: "Sourcer des Ingrédients",
-    h1b: "Nutraceutiques Premium",
-    h1c: "Mondialement",
-    sub: "Connectez-vous avec des fabricants vérifiés en Inde, Chine et UE. Parcourez 500+ ingrédients et recevez des devis commerciaux en 48 heures.",
+    eyebrow: "⚡ La Superfactory Nutraceutique",
+    h1a: "Ingrédients Nutraceutiques Premium",
+    h1b: "Sourcés dans les Meilleures",
+    h1c: "Usines du Monde",
+    sub: "De l'Ashwagandha en Inde au Colostrum en Nouvelle-Zélande — nous sourceons, vérifions et livrons. Une plateforme, 500+ ingrédients, 6 régions.",
     search: "Rechercher par nom, numéro CAS ou catégorie…",
     searchBtn: "Rechercher",
-    trust1: "Fournisseurs certifiés ISO", trust2: "CoA et TDS disponibles", trust3: "Devis en 48h", trust4: "Livraison mondiale",
+    trust1: "Amérique du Nord & Europe", trust2: "Moyen-Orient & Afrique", trust3: "Inde & Chine", trust4: "Devis en 48h",
+    sfTitle: "Pourquoi les marques nous appellent leur Superfactory",
+    sfSub: "Une plateforme. 500+ ingrédients. 6 régions.",
+    sfDesc: "Nous consolidons l'approvisionnement depuis l'Inde, la Chine, l'Europe, l'Amérique du Nord, le Moyen-Orient et l'Afrique.",
+    sf1: "Point de contact unique", sf1d: "Une équipe gère l'approvisionnement, la documentation et la logistique.",
+    sf2: "Usines vérifiées uniquement", sf2d: "Chaque fournisseur est pré-vérifié. CoA, TDS et MSDS toujours fournis.",
+    sf3: "Devis en 48h", sf3d: "Soumettez une demande aujourd'hui et recevez un devis dans les 48 heures.",
+    sf4: "6 régions mondiales", sf4d: "Amérique du Nord, Europe, Moyen-Orient, Afrique, Inde et Chine.",
     cats: "Parcourir par catégorie", catSub: "20 catégories · 500+ ingrédients actifs", viewAll: "Voir tout →",
     featured: "Produits en vedette", featSub: "En direct de notre catalogue",
     how: "Comment ça marche", howSub: "De la découverte à la livraison en quatre étapes",
@@ -59,14 +73,21 @@ const T = {
     f1: "Création de compte automatique", f2: "Connexion OTP", f3: "Réponse en 48h",
   },
   DE: {
-    eyebrow: "Vertrauenswürdige B2B-Plattform",
-    h1a: "Premium",
-    h1b: "Nutraceutische Zutaten",
-    h1c: "Global beziehen",
-    sub: "Verbinden Sie sich mit verifizierten Herstellern in Indien, China und der EU. Erhalten Sie Angebote innerhalb von 48 Stunden.",
+    eyebrow: "⚡ Die Nutraceutische Superfactory",
+    h1a: "Premium Nutraceutische Zutaten",
+    h1b: "Aus den Besten Fabriken",
+    h1c: "der Welt",
+    sub: "Von Ashwagandha in Indien bis Kolostrum in Neuseeland — wir sourcen, verifizieren und liefern. Eine Plattform, 500+ Zutaten, 6 Regionen.",
     search: "Suche nach Zutat, CAS-Nummer oder Kategorie…",
     searchBtn: "Suchen",
-    trust1: "ISO-zertifizierte Lieferanten", trust2: "CoA & TDS verfügbar", trust3: "Angebot in 48h", trust4: "Weltweiter Versand",
+    trust1: "Nordamerika & Europa", trust2: "Naher Osten & Afrika", trust3: "Indien & China", trust4: "Angebot in 48h",
+    sfTitle: "Warum Marken uns ihre Superfactory nennen",
+    sfSub: "Eine Plattform. 500+ Zutaten. 6 Regionen.",
+    sfDesc: "Wir konsolidieren die Beschaffung aus Indien, China, Europa, Nordamerika, dem Nahen Osten und Afrika.",
+    sf1: "Einziger Ansprechpartner", sf1d: "Ein Team kümmert sich um Beschaffung, Dokumentation und Logistik.",
+    sf2: "Nur verifizierte Fabriken", sf2d: "Jeder Lieferant wird vorab geprüft. CoA, TDS und MSDS immer bereitgestellt.",
+    sf3: "Angebot in 48h", sf3d: "Stellen Sie noch heute eine Anfrage und erhalten Sie ein Angebot innerhalb von 48 Stunden.",
+    sf4: "6 globale Regionen", sf4d: "Nordamerika, Europa, Naher Osten, Afrika, Indien und China.",
     cats: "Nach Kategorie suchen", catSub: "20 Kategorien · 500+ Zutaten", viewAll: "Alle anzeigen →",
     featured: "Empfohlene Produkte", featSub: "Live aus unserem Katalog",
     how: "So funktioniert es", howSub: "Von der Entdeckung bis zur Lieferung",
@@ -81,14 +102,21 @@ const T = {
     f1: "Automatische Kontoerstellung", f2: "OTP-Login", f3: "Antwort in 48h",
   },
   ES: {
-    eyebrow: "Plataforma B2B de Nutracéuticos",
-    h1a: "Obtener Ingredientes",
-    h1b: "Nutracéuticos Premium",
-    h1c: "Globalmente",
-    sub: "Conéctese con fabricantes verificados en India, China y la UE. Reciba cotizaciones comerciales en 48 horas.",
+    eyebrow: "⚡ La Superfactory Nutracéutica",
+    h1a: "Ingredientes Nutracéuticos Premium",
+    h1b: "Obtenidos de las Mejores",
+    h1c: "Fábricas del Mundo",
+    sub: "De Ashwagandha en India al Calostro en Nueva Zelanda — obtenemos, verificamos y entregamos. Una plataforma, 500+ ingredientes, 6 regiones.",
     search: "Buscar por nombre, número CAS o categoría…",
     searchBtn: "Buscar",
-    trust1: "Proveedores certificados ISO", trust2: "CoA y TDS disponibles", trust3: "Cotización en 48h", trust4: "Envío mundial",
+    trust1: "Norteamérica & Europa", trust2: "Oriente Medio & África", trust3: "India & China", trust4: "Cotización en 48h",
+    sfTitle: "Por qué las marcas nos llaman su Superfactory",
+    sfSub: "Una plataforma. 500+ ingredientes. 6 regiones.",
+    sfDesc: "Consolidamos el abastecimiento desde India, China, Europa, Norteamérica, Oriente Medio y África.",
+    sf1: "Punto de contacto único", sf1d: "Un equipo gestiona el abastecimiento, documentación y logística.",
+    sf2: "Solo fábricas verificadas", sf2d: "Cada proveedor está pre-verificado. CoA, TDS y MSDS siempre disponibles.",
+    sf3: "Cotización en 48h", sf3d: "Envíe una consulta hoy y reciba una cotización comercial en 48 horas.",
+    sf4: "6 regiones globales", sf4d: "Norteamérica, Europa, Oriente Medio, África, India y China.",
     cats: "Navegar por categoría", catSub: "20 categorías · 500+ ingredientes activos", viewAll: "Ver todo →",
     featured: "Productos destacados", featSub: "En vivo desde nuestro catálogo",
     how: "Cómo funciona", howSub: "Del descubrimiento a la entrega en cuatro pasos",
@@ -185,6 +213,38 @@ export default function Home({ lang, cart, onAddToCart }) {
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{l}</div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* SUPERFACTORY SECTION */}
+      <section style={{ padding:"56px 0", background:"white", borderBottom:"1px solid #f1f5f9" }}>
+        <div className="container">
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:64, alignItems:"center" }}>
+            <div>
+              <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:"#FFF7ED", border:"1px solid #fed7aa", color:"#c2410c", fontSize:10, fontWeight:600, letterSpacing:2, textTransform:"uppercase", padding:"4px 12px", borderRadius:20, marginBottom:16 }}>
+                ⚡ The Nutraceutical Superfactory
+              </div>
+              <h2 style={{ fontFamily:"'DM Serif Display',serif", fontSize:34, color:"#0D1F3C", fontWeight:400, letterSpacing:-0.5, marginBottom:14, lineHeight:1.2 }}>{t.sfTitle}</h2>
+              <p style={{ fontSize:13, color:"#64748b", lineHeight:1.8, marginBottom:24, fontWeight:300 }}>{t.sfDesc}</p>
+              <div style={{ display:"flex", gap:8 }}>
+                <Link to="/products">
+                  <button style={{ background:"#0D1F3C", color:"white", border:"none", borderRadius:6, padding:"9px 20px", fontSize:12, fontWeight:500, cursor:"pointer" }}>Browse Catalogue</button>
+                </Link>
+                <Link to="/enquiry">
+                  <button style={{ background:"none", border:"1px solid #0D1F3C", color:"#0D1F3C", borderRadius:6, padding:"9px 20px", fontSize:12, cursor:"pointer" }}>Submit Enquiry</button>
+                </Link>
+              </div>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              {[[t.sf1,t.sf1d,"🤝"],[t.sf2,t.sf2d,"✅"],[t.sf3,t.sf3d,"⚡"],[t.sf4,t.sf4d,"🌍"]].map(([title,desc,icon])=>(
+                <div key={title} style={{ background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:12, padding:18 }}>
+                  <div style={{ fontSize:22, marginBottom:8 }}>{icon}</div>
+                  <div style={{ fontSize:12, fontWeight:600, color:"#0D1F3C", marginBottom:5 }}>{title}</div>
+                  <div style={{ fontSize:11, color:"#64748b", lineHeight:1.55 }}>{desc}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
