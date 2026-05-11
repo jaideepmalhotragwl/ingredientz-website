@@ -142,7 +142,7 @@ export default function Home({ lang, cart, onAddToCart }) {
   const t = T[lang] || T.EN;
 
   useEffect(() => {
-    supabase.from("products").select("*,product_categories(name)").eq("status","active").order("name").limit(6).then(({ data }) => setProducts(data || []));
+    supabase.from("products").select("*,product_categories(name)").eq("status","active").eq("featured",true).order("name").limit(6).then(({ data }) => setProducts(data || []));
     supabase.from("product_categories").select("*").eq("active",true).order("sort_order").then(({ data }) => setCats(data || []));
   }, []);
 
