@@ -108,15 +108,18 @@ export function LoginModal({ onClose }) {
           </div>
         ):(
           <>
-            <div style={{fontFamily:"'DM Serif Display',serif",fontSize:22,color:"#0D1F3C",marginBottom:6}}>{step==="email"?"Login to your account":"Enter your OTP"}</div>
-            <div style={{fontSize:13,color:"#64748b",marginBottom:24}}>{step==="email"?"Enter your business email. We'll send a one-time code.":`We sent a 6-digit code to ${email}`}</div>
+            <div style={{fontFamily:"'DM Serif Display',serif",fontSize:22,color:"#0D1F3C",marginBottom:6}}>{step==="email"?"Login to your account":step==="otp"?"Enter your OTP":"Check your email"}</div>
+            <div style={{fontSize:13,color:"#64748b",marginBottom:24}}>{step==="email"?"Enter your business email. We'll send a login link or code.":step==="otp"?`We sent a 6-digit code to ${email}`:`We sent a login link to ${email}. Click it to sign in — or enter the code below if you received one.`}</div>
             {step==="email"
               ?<input value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendOtp()} type="email" placeholder="you@company.com" style={{width:"100%",border:"1px solid #e2e8f0",borderRadius:8,padding:"10px 14px",fontSize:14,outline:"none",marginBottom:12}}/>
-              :<input value={otp} onChange={e=>setOtp(e.target.value)} onKeyDown={e=>e.key==="Enter"&&verifyOtp()} type="text" placeholder="123456" maxLength={6} style={{width:"100%",border:"1px solid #e2e8f0",borderRadius:8,padding:"10px 14px",fontSize:24,letterSpacing:8,outline:"none",marginBottom:12,textAlign:"center"}}/>
+              :<div>
+                <input value={otp} onChange={e=>setOtp(e.target.value)} onKeyDown={e=>e.key==="Enter"&&verifyOtp()} type="text" placeholder="123456" maxLength={8} style={{width:"100%",border:"1px solid #e2e8f0",borderRadius:8,padding:"10px 14px",fontSize:24,letterSpacing:8,outline:"none",marginBottom:12,textAlign:"center"}}/>
+                <p style={{fontSize:11,color:"#94a3b8",textAlign:"center",marginBottom:12}}>No code? Check your email for a magic link instead.</p>
+              </div>
             }
             {error&&<div style={{fontSize:12,color:"#ef4444",marginBottom:10}}>{error}</div>}
             <button onClick={step==="email"?sendOtp:verifyOtp} disabled={loading} style={{width:"100%",background:"#0D1F3C",color:"white",border:"none",borderRadius:8,padding:11,fontSize:13,fontWeight:500,cursor:"pointer",opacity:loading?0.7:1}}>
-              {loading?"Please wait…":step==="email"?"Send OTP →":"Verify & Login →"}
+              {loading?"Please wait…":step==="email"?"Send Login Link →":"Verify Code →"}
             </button>
             {step==="otp"&&<button onClick={()=>{setStep("email");setOtp("");}} style={{width:"100%",background:"none",border:"none",color:"#64748b",fontSize:12,marginTop:10,cursor:"pointer"}}>← Use a different email</button>}
           </>
