@@ -2,8 +2,6 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase.js";
 
-const RESEND_KEY = "re_5zF5tNDR_759Q9NboE6v88NoCmRiDQtdY";
-
 export default function Enquiry({ lang, cart, onRemoveFromCart, onClearCart }) {
   const [form, setForm] = useState({ company:"", contact:"", email:"", phone:"", country:"", notes:"" });
   const [customProduct, setCustomProduct] = useState("");
@@ -43,34 +41,8 @@ export default function Enquiry({ lang, cart, onRemoveFromCart, onClearCart }) {
 
       if (enqErr) throw enqErr;
 
-      // Send confirmation email via Resend
-      await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${RESEND_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          from: "Ingredientz <sales@mail.ingredientz.co>",
-          to: form.email,
-          reply_to: "sales@ingredientz.co",
-          subject: `Enquiry Received — ${products.map(p=>p.name).join(", ")} [ENQ-${enquiry?.id}]`,
-          html: `
-            <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #e8e8e8;border-radius:12px;overflow:hidden;">
-              <div style="background:#0D1F3C;padding:20px 32px;">
-                <div style="color:#fff;font-size:20px;font-weight:bold;">Enquiry Received</div>
-                <div style="color:rgba(255,255,255,0.6);font-size:12px;">ENQ-${enquiry?.id} · ${new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}</div>
-              </div>
-              <div style="padding:28px 32px;background:#fff;font-size:14px;color:#444;line-height:1.7;">
-                <p>Dear <strong>${form.contact || form.company || "there"}</strong>,</p>
-                <p>Thank you for your enquiry. We have received your request and our team will respond with a commercial quotation within <strong>48 hours</strong>.</p>
-                <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-                  <tr style="background:#f8fafc;"><th style="padding:8px 12px;text-align:left;font-size:11px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0;">PRODUCT</th><th style="padding:8px 12px;text-align:left;font-size:11px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0;">QTY</th></tr>
-                  ${products.map(p=>`<tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;">${p.name}</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#64748b;">${p.qty?`${p.qty} ${p.unit}`:"—"}</td></tr>`).join("")}
-                </table>
-                <p style="font-size:13px;color:#64748b;margin-top:16px;">To track your enquiry, you can login to your account at <a href="https://ingredientz.co/account" style="color:#1877F2;">ingredientz.co/account</a> using a one-time OTP sent to this email.</p>
-              </div>
-              <div style="background:#f9f9f9;padding:12px 32px;border-top:1px solid #e8e8e8;font-size:11px;color:#aaa;">Ingredientz Inc · sales@ingredientz.co · www.ingredientz.co</div>
-            </div>`
-        })
-      });
+      // Enquiry created — email follow-up handled by Google Apps Script sequencer
+      // which fires automatically within the hour
 
       onClearCart();
       setDone(true);
