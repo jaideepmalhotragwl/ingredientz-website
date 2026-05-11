@@ -10,10 +10,7 @@ export function Footer() {
             {/* Brand col */}
             <div>
               <div style={{ marginBottom:12 }}>
-                <img src="/logo.png" alt="Ingredientz"
-                  style={{ height:30, objectFit:"contain", filter:"brightness(0) invert(1)", opacity:0.85 }}
-                  onError={e => { e.target.style.display="none"; e.target.nextSibling.style.display="block"; }}/>
-                <span style={{ display:"none", fontFamily:"'DM Serif Display',serif", fontSize:18, color:"white" }}>Ingredientz</span>
+                <span style={{ fontFamily:"'DM Serif Display',serif", fontSize:20, color:"white", letterSpacing:-0.5 }}>Ingredientz</span>
               </div>
               <div style={{ color:"#2dd4bf", fontSize:10, fontWeight:600, letterSpacing:1.5, textTransform:"uppercase", marginBottom:10 }}>
                 ⚡ The Nutraceutical Superfactory
