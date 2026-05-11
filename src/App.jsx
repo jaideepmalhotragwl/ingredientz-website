@@ -2,6 +2,7 @@ import { useState } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Navbar } from "./components/Navbar.jsx";
 import { Footer } from "./components/Footer.jsx";
+import { ReadyStockTicker } from "./components/ReadyStockTicker.jsx";
 import Home from "./pages/Home.jsx";
 import Products from "./pages/Products.jsx";
 import ProductDetail from "./pages/ProductDetail.jsx";
@@ -46,6 +47,9 @@ export default function App() {
           </Routes>
         </main>
         <Footer/>
+
+        {/* Fixed bottom ticker — shows only when ready stock products exist */}
+        <ReadyStockTicker/>
       </div>
     </BrowserRouter>
   );
