@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+
+  <!-- Homepage -->
+  <url>
+    <loc>https://www.ingredientz.co/</loc>
+    <lastmod>2026-05-12</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.ingredientz.co/"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://www.ingredientz.co/"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://www.ingredientz.co/"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://www.ingredientz.co/"/>
+  </url>
+
+  <!-- Products -->
+  <url>
+    <loc>https://www.ingredientz.co/products</loc>
+    <lastmod>2026-05-12</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.ingredientz.co/products"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://www.ingredientz.co/products"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://www.ingredientz.co/products"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://www.ingredientz.co/products"/>
+  </url>
+
+  <!-- Categories -->
+  <url>
+    <loc>https://www.ingredientz.co/categories</loc>
+    <lastmod>2026-05-12</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Category pages -->
+  <url><loc>https://www.ingredientz.co/products?cat=botanical-extracts</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.ingredientz.co/products?cat=herbal-powders</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.ingredientz.co/products?cat=mushroom-extracts</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.ingredientz.co/products?cat=vitamins-minerals</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.ingredientz.co/products?cat=probiotics-prebiotics</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.ingredientz.co/products?cat=proteins-amino-acids</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.ingredientz.co/products?cat=animal-marine</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.ingredientz.co/products?cat=enzymes</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.ingredientz.co/products?cat=greens-superfoods</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.ingredientz.co/products?cat=fatty-acids-oils</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.ingredientz.co/products?cat=cosmeceuticals</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.ingredientz.co/products?cat=sports-nutrition</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.ingredientz.co/products?cat=food-ingredients</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.ingredientz.co/products?cat=pharmaceutical</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.ingredientz.co/products?cat=dairy-ingredients</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.ingredientz.co/products?cat=premixes-blends</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+
+  <!-- Static pages -->
+  <url>
+    <loc>https://www.ingredientz.co/about</loc>
+    <lastmod>2026-05-12</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.ingredientz.co/contact</loc>
+    <lastmod>2026-05-12</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+</urlset>

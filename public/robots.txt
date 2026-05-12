@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /account
+Disallow: /enquiry
+Disallow: /api/
+
+Sitemap: https://www.ingredientz.co/sitemap.xml
