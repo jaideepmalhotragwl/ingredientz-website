@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase.js";
 import { ProductCard } from "../components/ProductCard.jsx";
+import { SEO, PAGE_SEO } from "../components/SEO.jsx";
 
 export default function Products({ lang, cart, onAddToCart }) {
   const [searchParams] = useSearchParams();
@@ -41,7 +42,7 @@ export default function Products({ lang, cart, onAddToCart }) {
 
   return (
     <div style={{ minHeight: "70vh" }}>
-      {/* Header */}
+      <SEO {...PAGE_SEO.products}/>
       <div style={{ background: "#0D1F3C", padding: "36px 0" }}>
         <div className="container">
           <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 36, color: "white", fontWeight: 400, letterSpacing: -0.5, marginBottom: 6 }}>

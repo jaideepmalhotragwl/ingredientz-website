@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "../lib/supabase.js";
+import { SEO, generateProductSEO } from "../components/SEO.jsx";
 
 export default function ProductDetail({ onAddToCart, cart }) {
   const { slug } = useParams();
@@ -38,6 +39,7 @@ export default function ProductDetail({ onAddToCart, cart }) {
 
   return (
     <div style={{ minHeight:"70vh" }}>
+      {product && <SEO {...generateProductSEO(product)} product={product}/>}
       {/* Breadcrumb */}
       <div style={{ background:"#f8fafc", borderBottom:"1px solid #e2e8f0", padding:"12px 0" }}>
         <div className="container" style={{ display:"flex", gap:8, alignItems:"center", fontSize:12, color:"#94a3b8" }}>

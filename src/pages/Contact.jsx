@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase.js";
+import { SEO, PAGE_SEO } from "../components/SEO.jsx";
 
 const RESEND_KEY = "re_5zF5tNDR_759Q9NboE6v88NoCmRiDQtdY";
 
@@ -200,8 +201,7 @@ export default function Contact() {
 
   return (
     <div style={{ minHeight:"70vh" }}>
-      {/* Header */}
-      <div style={{ background:"#0D1F3C", padding:"48px 0" }}>
+      <SEO {...PAGE_SEO.contact}/>
         <div className="container">
           <h1 style={{ fontFamily:"'DM Serif Display',serif", fontSize:42, color:"white", fontWeight:400, letterSpacing:-1, marginBottom:10 }}>Contact Us</h1>
           <p style={{ color:"rgba(255,255,255,0.5)", fontSize:14 }}>Our global team is here to help. We respond within 24 hours.</p>

@@ -1,8 +1,10 @@
 import { Link } from "react-router-dom";
+import { SEO, PAGE_SEO } from "../components/SEO.jsx";
 
 export default function About() {
   return (
     <div style={{ minHeight:"70vh" }}>
+      <SEO {...PAGE_SEO.about}/>
       <div style={{ background:"#0D1F3C", padding:"64px 0" }}>
         <div className="container" style={{ maxWidth:680 }}>
           <h1 style={{ fontFamily:"'DM Serif Display',serif", fontSize:48, color:"white", fontWeight:400, letterSpacing:-1, marginBottom:16 }}>

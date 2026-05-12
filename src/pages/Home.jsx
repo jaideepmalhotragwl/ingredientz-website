@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase.js";
 import { ProductCard } from "../components/ProductCard.jsx";
+import { SEO, PAGE_SEO } from "../components/SEO.jsx";
 
 const CAT_ICONS = {
   "Botanical Extracts":"🌿","Herbal Powders":"🌱","Fruit Powders":"🍊",
@@ -175,6 +176,7 @@ export default function Home({ lang, cart, onAddToCart }) {
 
   return (
     <div>
+      <SEO {...PAGE_SEO.home}/>
       {/* HERO */}
       <section style={{ background: "#0D1F3C", padding: "72px 0 56px", position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", top: -100, right: -100, width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle, rgba(14,165,160,0.1) 0%, transparent 70%)", pointerEvents: "none" }}/>
