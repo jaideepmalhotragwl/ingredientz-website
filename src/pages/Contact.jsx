@@ -202,6 +202,8 @@ export default function Contact() {
   return (
     <div style={{ minHeight:"70vh" }}>
       <SEO {...PAGE_SEO.contact}/>
+      {/* Header */}
+      <div style={{ background:"#0D1F3C", padding:"48px 0" }}>
         <div className="container">
           <h1 style={{ fontFamily:"'DM Serif Display',serif", fontSize:42, color:"white", fontWeight:400, letterSpacing:-1, marginBottom:10 }}>Contact Us</h1>
           <p style={{ color:"rgba(255,255,255,0.5)", fontSize:14 }}>Our global team is here to help. We respond within 24 hours.</p>
