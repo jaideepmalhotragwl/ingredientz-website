@@ -1,0 +1,103 @@
+// public/sitemap-generator.html
+// Open this page on your live website to download the full sitemap
+// Then upload the downloaded sitemap.xml to your public/ folder
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>Sitemap Generator — Ingredientz</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+<h2>Generating sitemap...</h2>
+<div id="status">Loading products from database...</div>
+<br/>
+<button id="downloadBtn" style="display:none;padding:12px 24px;background:#0D1F3C;color:white;border:none;border-radius:8px;font-size:14px;cursor:pointer;">
+  ⬇ Download sitemap.xml
+</button>
+
+<script>
+const { createClient } = supabase;
+const client = createClient(
+  'https://eytoryygkxjslfvsqanl.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5dG9yeXlna3hqc2xmdnNxYW5sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NDA5MTUsImV4cCI6MjA5MDMxNjkxNX0.txYTl0Q06mKSfWGmWc8cOTmCN46tLcxF9_7RhBUHBRY'
+);
+
+const SITE = 'https://www.ingredientz.co';
+const today = new Date().toISOString().split('T')[0];
+
+async function generate() {
+  const status = document.getElementById('status');
+
+  // Fetch products
+  status.textContent = 'Fetching products...';
+  const { data: products } = await client
+    .from('products')
+    .select('slug,updated_at')
+    .eq('status','active')
+    .order('name');
+
+  // Fetch categories  
+  status.textContent = 'Fetching categories...';
+  const { data: cats } = await client
+    .from('product_categories')
+    .select('slug,name')
+    .eq('active',true);
+
+  status.textContent = `Found ${products?.length || 0} products and ${cats?.length || 0} categories. Building sitemap...`;
+
+  const staticPages = [
+    { url:'/', priority:'1.0', changefreq:'weekly' },
+    { url:'/products', priority:'0.9', changefreq:'daily' },
+    { url:'/categories', priority:'0.8', changefreq:'weekly' },
+    { url:'/about', priority:'0.6', changefreq:'monthly' },
+    { url:'/contact', priority:'0.6', changefreq:'monthly' },
+  ];
+
+  const catPages = (cats||[]).map(c => ({
+    url: `/products?cat=${c.slug}`,
+    priority: '0.8',
+    changefreq: 'weekly'
+  }));
+
+  const productPages = (products||[]).map(p => ({
+    url: `/products/${p.slug}`,
+    priority: '0.7',
+    changefreq: 'weekly',
+    lastmod: p.updated_at ? p.updated_at.split('T')[0] : today
+  }));
+
+  const all = [...staticPages, ...catPages, ...productPages];
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+${all.map(p => `  <url>
+    <loc>${SITE}${p.url}</loc>
+    <lastmod>${p.lastmod || today}</lastmod>
+    <changefreq>${p.changefreq}</changefreq>
+    <priority>${p.priority}</priority>
+  </url>`).join('\n')}
+</urlset>`;
+
+  status.textContent = `✅ Sitemap generated with ${all.length} URLs (${productPages.length} products, ${catPages.length} categories, ${staticPages.length} static pages)`;
+
+  // Create download
+  const blob = new Blob([xml], { type: 'application/xml' });
+  const url = URL.createObjectURL(blob);
+  const btn = document.getElementById('downloadBtn');
+  btn.style.display = 'block';
+  btn.onclick = () => {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sitemap.xml';
+    a.click();
+  };
+}
+
+generate().catch(e => {
+  document.getElementById('status').textContent = 'Error: ' + e.message;
+});
+</script>
+</body>
+</html>
