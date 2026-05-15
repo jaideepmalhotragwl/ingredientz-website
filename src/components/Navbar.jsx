@@ -4,10 +4,10 @@ import { supabase } from "../lib/supabase.js";
 
 const LANGS = ["EN","FR","DE","ES"];
 const T = {
-  EN: { products:"Products", categories:"Categories", about:"About", contact:"Contact", login:"Login", quote:"Request Quote" },
-  FR: { products:"Produits", categories:"Catégories", about:"À propos", contact:"Contact", login:"Connexion", quote:"Demander un devis" },
-  DE: { products:"Produkte", categories:"Kategorien", about:"Über uns", contact:"Kontakt", login:"Anmelden", quote:"Angebot anfordern" },
-  ES: { products:"Productos", categories:"Categorías", about:"Acerca de", contact:"Contacto", login:"Iniciar sesión", quote:"Solicitar cotización" },
+  EN: { products:"Products", categories:"Categories", about:"About", contact:"Contact", blog:"Blog", login:"Login", quote:"Request Quote" },
+  FR: { products:"Produits", categories:"Catégories", about:"À propos", contact:"Contact", blog:"Blog", login:"Connexion", quote:"Demander un devis" },
+  DE: { products:"Produkte", categories:"Kategorien", about:"Über uns", contact:"Kontakt", blog:"Blog", login:"Anmelden", quote:"Angebot anfordern" },
+  ES: { products:"Productos", categories:"Categorías", about:"Acerca de", contact:"Contacto", blog:"Blog", login:"Iniciar sesión", quote:"Solicitar cotización" },
 };
 
 export function Navbar({ lang, setLang, cartCount }) {
@@ -35,7 +35,7 @@ export function Navbar({ lang, setLang, cartCount }) {
             <img src="/logo.png" alt="Ingredientz" style={{ height:36, width:"auto", objectFit:"contain" }}/>
           </Link>
           <div style={{ display:"flex", gap:2, marginLeft:8 }}>
-            {[["products","/products"],["categories","/categories"],["about","/about"],["contact","/contact"]].map(([key,href])=>(
+            {[["products","/products"],["categories","/categories"],["about","/about"],["contact","/contact"],["blog","/blog"]].map(([key,href])=>(
               <Link key={key} to={href} style={{ color:"#64748b", fontSize:13, padding:"6px 12px", borderRadius:6, textDecoration:"none" }}
                 onMouseEnter={e=>{e.target.style.color="#0D1F3C";e.target.style.background="#f8fafc";}}
                 onMouseLeave={e=>{e.target.style.color="#64748b";e.target.style.background="transparent";}}>
