@@ -5,3 +5,4 @@ Disallow: /enquiry
 Disallow: /api/
 
 Sitemap: https://www.ingredientz.co/sitemap.xml
+Sitemap: https://www.ingredientz.co/sitemap-ingredients.xml
