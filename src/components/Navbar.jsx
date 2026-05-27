@@ -10,9 +10,14 @@ const T = {
   ES: { ingredients:"Ingredientes", products:"Productos", categories:"Categorías", about:"Acerca de", contact:"Contacto", blog:"Blog", login:"Iniciar sesión", quote:"Solicitar cotización" },
 };
 
+// Maps the current site language to the correct static ingredients hub URL.
+// EN -> /ingredients, others -> /<lang>/ingredients
+const INGREDIENTS_HREF = { EN:"/ingredients", FR:"/fr/ingredients", DE:"/de/ingredients", ES:"/es/ingredients" };
+
 export function Navbar({ lang, setLang, cartCount }) {
   const [showLogin, setShowLogin] = useState(false);
   const t = T[lang] || T.EN;
+  const ingredientsHref = INGREDIENTS_HREF[lang] || INGREDIENTS_HREF.EN;
 
   return (
     <>
@@ -35,7 +40,15 @@ export function Navbar({ lang, setLang, cartCount }) {
             <img src="/logo.png" alt="Ingredientz" style={{ height:36, width:"auto", objectFit:"contain" }}/>
           </Link>
           <div style={{ display:"flex", gap:2, marginLeft:8 }}>
-            {[["ingredients","/ingredients"],["products","/products"],["categories","/categories"],["about","/about"],["contact","/contact"],["blog","/blog"]].map(([key,href])=>(
+            {/* Ingredients is a STATIC page (not a React route) — must use a plain <a> so the
+                browser does a full server navigation and hits the Amplify rewrite rule. */}
+            <a href={ingredientsHref} style={{ color:"#64748b", fontSize:13, padding:"6px 12px", borderRadius:6, textDecoration:"none" }}
+              onMouseEnter={e=>{e.target.style.color="#0D1F3C";e.target.style.background="#f8fafc";}}
+              onMouseLeave={e=>{e.target.style.color="#64748b";e.target.style.background="transparent";}}>
+              {t.ingredients}
+            </a>
+            {/* These are real React routes — keep as <Link> for client-side routing. */}
+            {[["products","/products"],["categories","/categories"],["about","/about"],["contact","/contact"],["blog","/blog"]].map(([key,href])=>(
               <Link key={key} to={href} style={{ color:"#64748b", fontSize:13, padding:"6px 12px", borderRadius:6, textDecoration:"none" }}
                 onMouseEnter={e=>{e.target.style.color="#0D1F3C";e.target.style.background="#f8fafc";}}
                 onMouseLeave={e=>{e.target.style.color="#64748b";e.target.style.background="transparent";}}>
