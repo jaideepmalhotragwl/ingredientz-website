@@ -3,14 +3,11 @@
 // Uses the SAME send-email helper the CRM already uses (in the CRM Supabase project).
 // This file is self-contained and does not touch any existing website code.
 
-import { supabase } from "./supabase.js";
-
 // The website's Supabase project URL + public (anon) key.
-// These are read from the supabase client the website already created,
-// so we never paste any secret here. The real Resend key stays hidden
-// inside the send-email Edge Function on Supabase.
-const SUPA_URL = supabase.supabaseUrl;
-const SUPA_KEY = supabase.supabaseKey;
+// These are the SAME public values already in supabase.js (safe in website code).
+// The real Resend secret key stays hidden inside the send-email Edge Function.
+const SUPA_URL = "https://eytoryygkxjslfvsqanl.supabase.co";
+const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5dG9yeXlna3hqc2xmdnNxYW5sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NDA5MTUsImV4cCI6MjA5MDMxNjkxNX0.txYTl0Q06mKSfWGmWc8cOTmCN46tLcxF9_7RhBUHBRY";
 
 // The navy "Ingredientz." wordmark, reused exactly as the CRM emails use it.
 // (Same proven logo that appears on RFQ and Quotation emails.)
