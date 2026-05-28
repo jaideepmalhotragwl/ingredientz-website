@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase.js";
+import { sendCustomerAcknowledgment } from "../lib/enquiryEmail.js";
 
 export default function Enquiry({ lang, cart, onRemoveFromCart, onClearCart }) {
   const [form, setForm] = useState({ company:"", contact:"", email:"", phone:"", country:"", notes:"" });
@@ -41,8 +42,19 @@ export default function Enquiry({ lang, cart, onRemoveFromCart, onClearCart }) {
 
       if (enqErr) throw enqErr;
 
-      // Enquiry created — email follow-up handled by Google Apps Script sequencer
-      // which fires automatically within the hour
+      // Send the customer an instant branded acknowledgment via Resend.
+      // Wrapped so that even if the email hiccups, the enquiry is still saved
+      // and the customer still sees the success screen.
+      try {
+        const greetingName = form.contact || form.company || "there";
+        await sendCustomerAcknowledgment({
+          toEmail: form.email,
+          greetingName,
+          products,
+        });
+      } catch (ackErr) {
+        console.error("Acknowledgment email failed (enquiry still saved):", ackErr);
+      }
 
       onClearCart();
       setDone(true);
