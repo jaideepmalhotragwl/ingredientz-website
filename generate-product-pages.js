@@ -260,6 +260,8 @@ async function generate() {
   if (error) { console.error("Supabase error:", error.message); process.exit(1); }
   if (!products || products.length === 0) { console.error("No active products found."); process.exit(1); }
 
+  mkdirSync(OUT_DIR, { recursive: true });
+
   let written = 0, skipped = 0;
   const seen = new Set();
 
@@ -269,9 +271,7 @@ async function generate() {
     if (seen.has(slug)) { skipped++; console.warn(`  ⚠ skipped (duplicate slug): ${slug}`); continue; }
     seen.add(slug);
 
-    const dir = `${OUT_DIR}/${slug}`;
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(`${dir}/index.html`, renderPage(p));
+    writeFileSync(`${OUT_DIR}/${slug}.html`, renderPage(p));
     written++;
   }
 
