@@ -3,8 +3,6 @@ import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase.js";
 import { LoginModal } from "../components/Navbar.jsx";
 
-const RESEND_KEY = "re_5zF5tNDR_759Q9NboE6v88NoCmRiDQtdY";
-
 const STAGE_COLORS = {
   "New Enquiry":      { bg:"#F1F5F9", color:"#64748b", border:"#e2e8f0" },
   "Sourcing Awaited": { bg:"#EEF4FF", color:"#1877F2", border:"#BFD6F6" },
@@ -18,15 +16,17 @@ const STAGE_COLORS = {
 };
 
 // ── SEND EMAIL ─────────────────────────────────────────────────────────────────
+// Routes through the server-side send-email Edge Function (RESEND_KEY lives there).
+// No API key is ever shipped to the browser.
 async function sendEmail({ to, subject, html }) {
-  await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${RESEND_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
+  await supabase.functions.invoke("send-email", {
+    body: {
       from: "Ingredientz <sales@mail.ingredientz.co>",
-      to, reply_to: "sales@ingredientz.co",
-      subject, html
-    })
+      to,
+      reply_to: "sales@ingredientz.co",
+      subject,
+      html,
+    },
   });
 }
 
@@ -315,16 +315,17 @@ export default function Account() {
   const [activeView, setActiveView]   = useState("enquiries"); // enquiries | quotations | orders
   const [selectedEnq, setSelectedEnq] = useState(null);
   const [mobMenuOpen, setMobMenuOpen] = useState(false);
+  const [isSupplier, setIsSupplier]   = useState(false); // also a supplier? -> show workspace switch
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (session?.user?.email) loadEnquiries(session.user.email);
+      if (session?.user?.email) { loadEnquiries(session.user.email); checkSupplier(session.user.email); }
       else setLoading(false);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       setSession(session);
-      if (session?.user?.email) loadEnquiries(session.user.email);
+      if (session?.user?.email) { loadEnquiries(session.user.email); checkSupplier(session.user.email); }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -336,9 +337,14 @@ export default function Account() {
     setLoading(false);
   }
 
+  async function checkSupplier(email) {
+    const { data } = await supabase.from("suppliers").select("id").ilike("email", email).maybeSingle();
+    setIsSupplier(!!data);
+  }
+
   async function logout() {
     await supabase.auth.signOut();
-    setSession(null); setEnquiries([]);
+    setSession(null); setEnquiries([]); setIsSupplier(false);
   }
 
   if (!session) return (
@@ -393,6 +399,13 @@ export default function Account() {
               </span>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              {isSupplier && (
+                <Link to="/supplier">
+                  <button style={{ background: "rgba(45,212,191,0.15)", border: "1px solid rgba(45,212,191,0.35)", color: "#2dd4bf", borderRadius: 7, padding: "8px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                    Supplier workspace →
+                  </button>
+                </Link>
+              )}
               <Link to="/enquiry">
                 <button style={{ background: "#1877F2", color: "white", border: "none", borderRadius: 7, padding: "8px 16px", fontSize: 12, fontWeight: 500, cursor: "pointer" }}>
                   + New Enquiry
@@ -447,6 +460,11 @@ export default function Account() {
                 </button>
               ))}
               <div style={{ height: 1, background: "#f1f5f9", margin: "12px 0" }}/>
+              {isSupplier && (
+                <Link to="/supplier" style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderRadius: 7, color: "#0EA5A0", fontSize: 12, textDecoration: "none", fontWeight: 600 }}>
+                  🏭 Supplier workspace
+                </Link>
+              )}
               <Link to="/products" style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderRadius: 7, color: "#64748b", fontSize: 12, textDecoration: "none" }}>
                 🧪 Browse Products
               </Link>
