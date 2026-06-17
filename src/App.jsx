@@ -9,6 +9,7 @@ import ProductDetail from "./pages/ProductDetail.jsx";
 import Categories from "./pages/Categories.jsx";
 import Enquiry from "./pages/Enquiry.jsx";
 import Account from "./pages/Account.jsx";
+import Supplier from "./pages/Supplier.jsx";
 import Blog from "./pages/Blog.jsx";
 import BlogPost from "./pages/BlogPost.jsx";
 import About from "./pages/About.jsx";
@@ -34,6 +35,7 @@ export default function App() {
             <Route path="/categories" element={<Categories/>}/>
             <Route path="/enquiry" element={<Enquiry lang={lang} cart={cart} onRemoveFromCart={removeFromCart} onClearCart={clearCart}/>}/>
             <Route path="/account" element={<Account/>}/>
+            <Route path="/supplier" element={<Supplier/>}/>
             <Route path="/blog" element={<Blog/>}/>
             <Route path="/blog/:slug" element={<BlogPost/>}/>
             <Route path="/about" element={<About/>}/>
