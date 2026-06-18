@@ -489,7 +489,7 @@ export default function Supplier() {
       <style>{styles}</style>
       <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 16, padding: "40px 32px", width: "100%", maxWidth: 400, textAlign: "center" }}>
         <h1 style={{ fontFamily: "'DM Serif Display',serif", fontSize: 26, color: "#0D1F3C", fontWeight: 400, marginBottom: 8 }}>Supplier Portal</h1>
-        <p style={{ fontSize: 13, color: "#64748b", marginBottom: 24, lineHeight: 1.7 }}>Login with your business email to manage your products, documents and quotations.</p>
+        <p style={{ fontSize: 13, color: "#64748b", marginBottom: 24, lineHeight: 1.7 }}>Log in with your business email to manage your products, documents and quotations. <b>New supplier?</b> Just log in — you can apply to supply right after.</p>
         <button onClick={() => setShowLogin(true)} style={{ background: "#0D1F3C", color: "white", border: "none", borderRadius: 8, padding: "12px 32px", fontSize: 13, fontWeight: 500, cursor: "pointer", width: "100%" }}>Login with OTP →</button>
         <p style={{ fontSize: 11, color: "#94a3b8", marginTop: 12 }}>No password needed · OTP sent to your email</p>
         <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid #f1f5f9" }}>
