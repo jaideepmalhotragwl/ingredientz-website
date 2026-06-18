@@ -5,9 +5,9 @@ import { LoginModal } from "../components/Navbar.jsx";
 
 // status chip colours (reuse the portal's STAGE_COLORS palette)
 const STATUS = {
-  approved: { label: "Approved",      bg: "#F0FDF4", color: "#166534", border: "#bbf7d0" },
-  pending:  { label: "Pending review",bg: "#FFF7ED", color: "#c2410c", border: "#fed7aa" },
-  rejected: { label: "Needs changes", bg: "#FFF1F2", color: "#be123c", border: "#fecdd3" },
+  active:           { label: "Approved",      bg: "#F0FDF4", color: "#166534", border: "#bbf7d0" },
+  pending_approval: { label: "Pending review",bg: "#FFF7ED", color: "#c2410c", border: "#fed7aa" },
+  rejected:         { label: "Needs changes", bg: "#FFF1F2", color: "#be123c", border: "#fecdd3" },
 };
 
 const styles = `
@@ -26,7 +26,7 @@ const slugify = (s) =>
 
 // ── reusable bits ────────────────────────────────────────────────────────────
 function Chip({ status }) {
-  const s = STATUS[status] || STATUS.pending;
+  const s = STATUS[status] || STATUS.pending_approval;
   return (
     <span style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}`, borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>
       {s.label}
@@ -103,20 +103,23 @@ function AddProduct({ supplier, email, categories, onAdded, onUseCatalogue }) {
       }).select().single();
       if (e1) throw e1;
 
-      // 2) link it to this supplier (pending)
+      // 2) link it to this supplier (pending approval)
       const { data: sp, error: e2 } = await supabase.from("supplier_products").insert({
         supplier_id: supplier.id, product_id: prod.id, submitted_by_supplier: true,
-        status: "pending",
+        status: "pending_approval",
         price_usd: f.price ? Number(f.price) : null,
         lead_time_days: f.lead ? Number(f.lead) : null,
         min_order_qty: f.moq ? Number(f.moq) : null,
         unit: f.unit,
       }).select().single();
-      if (e2) throw e2;
+      // if linking fails, remove the product we just created so nothing is left half-saved
+      if (e2) { await supabase.from("products").delete().eq("id", prod.id); throw e2; }
 
-      // 3) upload any documents
-      if (coaRef.current?.files?.[0])  await uploadDoc(coaRef.current.files[0], "coa", sp.id);
-      if (msdsRef.current?.files?.[0]) await uploadDoc(msdsRef.current.files[0], "msds", sp.id);
+      // 3) upload any documents (best effort — a doc hiccup won't undo the submission)
+      try {
+        if (coaRef.current?.files?.[0])  await uploadDoc(coaRef.current.files[0], "coa", sp.id);
+        if (msdsRef.current?.files?.[0]) await uploadDoc(msdsRef.current.files[0], "msds", sp.id);
+      } catch (docErr) { console.error("Document upload failed:", docErr); }
 
       alert("Submitted for approval. We'll email you when it's reviewed.");
       onAdded();
@@ -217,7 +220,7 @@ function Catalogue({ supplier, onAdded }) {
     try {
       const { error } = await supabase.from("supplier_products").insert({
         supplier_id: supplier.id, product_id: p.id, submitted_by_supplier: true,
-        status: "approved", unit: p.unit || "kg",
+        status: "active", unit: p.unit || "kg",
       });
       if (error) throw error;
       alert(`Added "${p.name}" to your products.`);
@@ -373,15 +376,15 @@ export default function Supplier() {
   );
 
   // ── supplier dashboard ──
-  const approved = products.filter((p) => p.status === "approved").length;
-  const pending  = products.filter((p) => p.status === "pending").length;
+  const approved = products.filter((p) => p.status === "active").length;
+  const pending  = products.filter((p) => p.status === "pending_approval").length;
   const rejected = products.filter((p) => p.status === "rejected").length;
 
   const TABS = [["list", "My list"], ["add", "Add a product"], ["excel", "Upload Excel"], ["cat", "Add from catalogue"]];
   const useCatalogueProduct = async (p) => {
     try {
       const { error } = await supabase.from("supplier_products").insert({
-        supplier_id: supplier.id, product_id: p.id, submitted_by_supplier: true, status: "approved", unit: p.unit || "kg",
+        supplier_id: supplier.id, product_id: p.id, submitted_by_supplier: true, status: "active", unit: p.unit || "kg",
       });
       if (error) throw error;
       alert(`Added "${p.name}" to your products.`); reload();
