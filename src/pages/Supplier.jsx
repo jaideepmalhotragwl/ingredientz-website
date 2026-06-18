@@ -308,6 +308,130 @@ function CompanyDocs({ supplier, email, docs, onChanged }) {
   );
 }
 
+// ── APPLY TO SUPPLY (first-time onboarding) ─────────────────────────────────────
+function ApplyForm({ email, onApplied, onLogout }) {
+  const [f, setF] = useState({ company: "", contact_name: "", country: "", phone: "", website: "", description: "", doc_type: "gmp" });
+  const [saving, setSaving] = useState(false);
+  const fileRef = useRef(null);
+  const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
+
+  async function submit() {
+    if (!f.company.trim()) { alert("Please enter your company name."); return; }
+    if (!fileRef.current?.files?.[0]) { alert("Please attach your GMP certificate or manufacturing licence."); return; }
+    setSaving(true);
+    try {
+      // 1) create the supplier profile as Pending
+      const { data: sup, error: e1 } = await supabase.from("suppliers").insert({
+        company: f.company.trim(),
+        slug: `${slugify(f.company)}-${Date.now()}`,
+        email,
+        status: "pending",
+        contact_name: f.contact_name || null,
+        country: f.country || null,
+        phone: f.phone || null,
+        website: f.website || null,
+        description: f.description || null,
+      }).select().single();
+      if (e1) throw e1;
+
+      // 2) upload the one required document
+      const file = fileRef.current.files[0];
+      const path = `company/${sup.id}/${Date.now()}-${file.name}`;
+      const { error: upErr } = await supabase.storage.from("supplier-docs").upload(path, file);
+      if (!upErr) {
+        const { data: pub } = supabase.storage.from("supplier-docs").getPublicUrl(path);
+        await supabase.from("supplier_documents").insert({
+          supplier_id: sup.id, doc_type: f.doc_type,
+          label: f.doc_type === "gmp" ? "GMP certificate" : "Manufacturing licence",
+          file_url: pub.publicUrl, file_name: file.name, uploaded_by: email,
+        });
+      }
+
+      // 3) notify the Ingredientz team (best effort)
+      try {
+        await supabase.functions.invoke("send-email", {
+          body: {
+            from: "Ingredientz <sales@mail.ingredientz.co>",
+            to: "sales@ingredientz.co", reply_to: "sales@ingredientz.co",
+            subject: `New supplier application — ${f.company.trim()}`,
+            html: `<p>A new supplier has applied and is awaiting approval.</p>
+                   <p><b>Company:</b> ${f.company.trim()}</p>
+                   <p><b>Contact:</b> ${f.contact_name || "—"} · ${email}</p>
+                   <p><b>Country:</b> ${f.country || "—"}</p>
+                   <p>Review in the CRM &rarr; Approvals.</p>`,
+          },
+        });
+      } catch (notifyErr) { console.error("Notify failed:", notifyErr); }
+
+      onApplied();
+    } catch (err) {
+      alert("Something went wrong: " + err.message);
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <div style={{ minHeight: "70vh", background: "#f8fafc" }}>
+      <style>{styles}</style>
+      <div style={{ background: "#0D1F3C", padding: "28px 0" }}>
+        <div className="container">
+          <div style={{ padding: "0 40px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <h1 style={{ fontFamily: "'DM Serif Display',serif", fontSize: 26, color: "white", fontWeight: 400 }}>Become a supplier</h1>
+              <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 4 }}>{email}</p>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Link to="/account?buyer=1"><button style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.25)", color: "white", borderRadius: 7, padding: "8px 14px", fontSize: 12, cursor: "pointer" }}>I'm a buyer</button></Link>
+              <button onClick={onLogout} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", borderRadius: 7, padding: "8px 14px", fontSize: 12, cursor: "pointer" }}>Logout</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="container" style={{ padding: "28px 40px", maxWidth: 820, margin: "0 auto" }}>
+        <p style={{ fontSize: 13, color: "#64748b", lineHeight: 1.7, marginBottom: 18 }}>
+          Tell us about your company and attach one credential. We'll review your application — once approved, your products
+          go live to buyers. You can start adding products straight after applying.
+        </p>
+        <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 12, padding: 18 }}>
+          <div className="sup-row2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div style={{ marginBottom: 14 }}><label style={labelStyle}>Company name *</label><input style={inputStyle} value={f.company} onChange={set("company")} placeholder="e.g. Acme Botanicals Pvt. Ltd." /></div>
+            <div style={{ marginBottom: 14 }}><label style={labelStyle}>Contact person</label><input style={inputStyle} value={f.contact_name} onChange={set("contact_name")} placeholder="Your name" /></div>
+          </div>
+          <div className="sup-row3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+            <div style={{ marginBottom: 14 }}><label style={labelStyle}>Country</label><input style={inputStyle} value={f.country} onChange={set("country")} placeholder="e.g. India" /></div>
+            <div style={{ marginBottom: 14 }}><label style={labelStyle}>Phone</label><input style={inputStyle} value={f.phone} onChange={set("phone")} placeholder="optional" /></div>
+            <div style={{ marginBottom: 14 }}><label style={labelStyle}>Website</label><input style={inputStyle} value={f.website} onChange={set("website")} placeholder="optional" /></div>
+          </div>
+          <div style={{ marginBottom: 14 }}><label style={labelStyle}>About your company</label><textarea style={{ ...inputStyle, minHeight: 62, resize: "vertical" }} value={f.description} onChange={set("description")} placeholder="What you make, capabilities, certifications…" /></div>
+
+          <div style={sectionStyle}>One credential (required)</div>
+          <div className="sup-row2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, alignItems: "end" }}>
+            <div style={{ marginBottom: 14 }}>
+              <label style={labelStyle}>Document type</label>
+              <select style={inputStyle} value={f.doc_type} onChange={set("doc_type")}>
+                <option value="gmp">GMP certificate</option>
+                <option value="manufacturing_license">Manufacturing licence</option>
+              </select>
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={labelStyle}>Upload file (PDF) *</label>
+              <input type="file" ref={fileRef} accept=".pdf,.png,.jpg,.jpeg" style={{ fontSize: 12 }} />
+            </div>
+          </div>
+
+          <div style={{ marginTop: 8 }}>
+            <button onClick={submit} disabled={saving}
+              style={{ background: "#0D1F3C", color: "white", border: "none", borderRadius: 8, padding: "11px 22px", fontSize: 13, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.7 : 1 }}>
+              {saving ? "Submitting…" : "Apply to supply"}
+            </button>
+            <span style={{ color: "#94a3b8", marginLeft: 10, fontSize: 12 }}>We'll review and email you.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── MAIN SUPPLIER PAGE ──────────────────────────────────────────────────────────
 export default function Supplier() {
   const [session, setSession]   = useState(null);
@@ -380,21 +504,8 @@ export default function Supplier() {
 
   if (loading) return (<div style={{ minHeight: "70vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8" }}><style>{styles}</style>Loading…</div>);
 
-  // ── logged in but not a supplier ──
-  if (!supplier) return (
-    <div style={{ minHeight: "70vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <style>{styles}</style>
-      <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 16, padding: "40px 32px", width: "100%", maxWidth: 460, textAlign: "center" }}>
-        <div style={{ fontSize: 40, marginBottom: 12 }}>🏭</div>
-        <h1 style={{ fontFamily: "'DM Serif Display',serif", fontSize: 24, color: "#0D1F3C", fontWeight: 400, marginBottom: 8 }}>Not a supplier account yet</h1>
-        <p style={{ fontSize: 13, color: "#64748b", marginBottom: 20, lineHeight: 1.7 }}>
-          <strong>{session.user.email}</strong> isn't linked to a supplier profile. If you'd like to supply ingredients to Ingredientz, email <a href="mailto:sales@ingredientz.co" style={{ color: "#1877F2" }}>sales@ingredientz.co</a> and we'll set you up.
-        </p>
-        <Link to="/account?buyer=1"><button style={{ background: "#0D1F3C", color: "white", border: "none", borderRadius: 8, padding: "10px 24px", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Go to buyer account</button></Link>
-        <button onClick={logout} style={{ background: "none", border: "1px solid #e2e8f0", color: "#64748b", borderRadius: 8, padding: "10px 18px", fontSize: 13, cursor: "pointer", marginLeft: 8 }}>Logout</button>
-      </div>
-    </div>
-  );
+  // ── logged in but not a supplier yet → application form ──
+  if (!supplier) return <ApplyForm email={session.user.email} onApplied={() => init(session.user.email)} onLogout={logout} />;
 
   // ── supplier dashboard ──
   const approved = products.filter((p) => p.status === "active").length;
@@ -423,7 +534,11 @@ export default function Supplier() {
             <div>
               <h1 style={{ fontFamily: "'DM Serif Display',serif", fontSize: 28, color: "white", fontWeight: 400 }}>{supplier.company || session.user.email.split("@")[0]}</h1>
               <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 4 }}>{session.user.email}</p>
-              <span style={{ display: "inline-block", background: "rgba(14,165,160,0.15)", border: "1px solid rgba(14,165,160,0.3)", color: "#2dd4bf", fontSize: 9, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", padding: "3px 10px", borderRadius: 20, marginTop: 8 }}>⚡ Verified Supplier</span>
+              {supplier.status === "active" ? (
+                <span style={{ display: "inline-block", background: "rgba(14,165,160,0.15)", border: "1px solid rgba(14,165,160,0.3)", color: "#2dd4bf", fontSize: 9, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", padding: "3px 10px", borderRadius: 20, marginTop: 8 }}>⚡ Verified Supplier</span>
+              ) : (
+                <span style={{ display: "inline-block", background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.4)", color: "#fbbf24", fontSize: 9, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", padding: "3px 10px", borderRadius: 20, marginTop: 8 }}>⏳ Awaiting approval</span>
+              )}
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <button onClick={() => setTab("add")} style={{ background: "#1877F2", color: "white", border: "none", borderRadius: 7, padding: "8px 16px", fontSize: 12, fontWeight: 500, cursor: "pointer" }}>+ Add product</button>
@@ -434,6 +549,12 @@ export default function Supplier() {
       </div>
 
       <div className="container" style={{ padding: "28px 40px" }}>
+        {supplier.status !== "active" && (
+          <div style={{ background: "#FFF7ED", border: "1px solid #fed7aa", color: "#9a5413", borderRadius: 10, padding: "13px 16px", fontSize: 13, marginBottom: 18, lineHeight: 1.6 }}>
+            <b>Your supplier account is awaiting approval.</b> You can add products and complete your company details now —
+            everything goes live to buyers once our team approves your account. We'll email you when you're approved.
+          </div>
+        )}
         {/* Stats */}
         <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 24 }}>
           {[["Approved", approved, "#22c55e"], ["Pending review", pending, "#f59e0b"], ["Needs changes", rejected, "#be123c"], ["Total products", products.length, "#1877F2"]].map(([label, val, color]) => (
