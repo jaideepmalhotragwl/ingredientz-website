@@ -98,7 +98,7 @@ function AddProduct({ supplier, email, categories, onAdded, onUseCatalogue }) {
         cas_number: f.cas || null,
         hsn_code: f.hsn || null,
         unit: f.unit,
-        status: "pending_approval",
+        status: "pending",
         created_by: email,
       }).select().single();
       if (e1) throw e1;
