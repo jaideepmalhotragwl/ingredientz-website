@@ -23,7 +23,9 @@ export function Footer() {
               <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:16 }}>
                 {[
                   ["🇺🇸","Registered Office","Ingredientz Inc, 8 The Green, Ste A, Dover, DE 19901, USA"],
-                  ["🇺🇸","Warehouse","13825 W Business Center Drive, Suite B, Green Oaks, IL 60045, USA"],
+                  ["🇺🇸","Warehouse — IL","13825 W Business Center Drive, Suite B, Green Oaks, IL 60045, USA"],
+                  ["🇺🇸","Warehouse — MA","705 Pleasant Street, Lee, MA 01238, USA"],
+                  ["🇺🇸","Warehouse — CA","2851 S East Ave, Fresno, CA 93725-1908, USA"],
                   ["🇮🇳","India","Mumbai · Indore · Haridwar"],
                   ["🇩🇪","Europe","Cologne, Germany"],
                   ["🇭🇰","Asia","Hong Kong"],
@@ -67,10 +69,10 @@ export function Footer() {
             {/* Company */}
             <div>
               <h4 style={{ color:"rgba(255,255,255,0.5)", fontSize:10, fontWeight:600, letterSpacing:1.5, textTransform:"uppercase", marginBottom:16 }}>Company</h4>
-              {[["About Us","/about"],["Our Suppliers","/suppliers"],["Contact","/contact"],["Careers","#"]].map(([label,href]) => (
-                <Link key={label} to={href} style={{ display:"block", color:"rgba(255,255,255,0.4)", fontSize:12, marginBottom:10, textDecoration:"none" }}
+              {[["About Us","/about"],["Our Suppliers","/suppliers"],["Become a supplier","/supplier"],["Contact","/contact"],["Careers","#"]].map(([label,href]) => (
+                <Link key={label} to={href} style={{ display:"block", color:label==="Become a supplier"?"#2dd4bf":"rgba(255,255,255,0.4)", fontSize:12, marginBottom:10, textDecoration:"none", fontWeight:label==="Become a supplier"?600:400 }}
                   onMouseEnter={e=>e.target.style.color="rgba(255,255,255,0.8)"}
-                  onMouseLeave={e=>e.target.style.color="rgba(255,255,255,0.4)"}>
+                  onMouseLeave={e=>e.target.style.color=label==="Become a supplier"?"#2dd4bf":"rgba(255,255,255,0.4)"}>
                   {label}
                 </Link>
               ))}
@@ -79,7 +81,7 @@ export function Footer() {
             {/* Account */}
             <div>
               <h4 style={{ color:"rgba(255,255,255,0.5)", fontSize:10, fontWeight:600, letterSpacing:1.5, textTransform:"uppercase", marginBottom:16 }}>Account</h4>
-              {[["Login with OTP","#"],["Submit Enquiry","/enquiry"],["Track Orders","/account"],["Privacy Policy","/privacy"]].map(([label,href]) => (
+              {[["Login","/account"],["Submit Enquiry","/enquiry"],["Track Orders","/account"],["Privacy Policy","/privacy"]].map(([label,href]) => (
                 <Link key={label} to={href} style={{ display:"block", color:"rgba(255,255,255,0.4)", fontSize:12, marginBottom:10, textDecoration:"none" }}
                   onMouseEnter={e=>e.target.style.color="rgba(255,255,255,0.8)"}
                   onMouseLeave={e=>e.target.style.color="rgba(255,255,255,0.4)"}>

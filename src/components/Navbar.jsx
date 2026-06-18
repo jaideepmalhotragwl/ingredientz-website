@@ -4,10 +4,10 @@ import { supabase } from "../lib/supabase.js";
 
 const LANGS = ["EN","FR","DE","ES"];
 const T = {
-  EN: { ingredients:"Ingredients", products:"Products", categories:"Categories", about:"About", contact:"Contact", blog:"Blog", login:"Login", quote:"Request Quote" },
-  FR: { ingredients:"Ingrédients", products:"Produits", categories:"Catégories", about:"À propos", contact:"Contact", blog:"Blog", login:"Connexion", quote:"Demander un devis" },
-  DE: { ingredients:"Inhaltsstoffe", products:"Produkte", categories:"Kategorien", about:"Über uns", contact:"Kontakt", blog:"Blog", login:"Anmelden", quote:"Angebot anfordern" },
-  ES: { ingredients:"Ingredientes", products:"Productos", categories:"Categorías", about:"Acerca de", contact:"Contacto", blog:"Blog", login:"Iniciar sesión", quote:"Solicitar cotización" },
+  EN: { ingredients:"Ingredients", products:"Products", categories:"Categories", about:"About", contact:"Contact", blog:"Blog", login:"Login", quote:"Request Quote", supplier:"Become a supplier" },
+  FR: { ingredients:"Ingrédients", products:"Produits", categories:"Catégories", about:"À propos", contact:"Contact", blog:"Blog", login:"Connexion", quote:"Demander un devis", supplier:"Devenir fournisseur" },
+  DE: { ingredients:"Inhaltsstoffe", products:"Produkte", categories:"Kategorien", about:"Über uns", contact:"Kontakt", blog:"Blog", login:"Anmelden", quote:"Angebot anfordern", supplier:"Lieferant werden" },
+  ES: { ingredients:"Ingredientes", products:"Productos", categories:"Categorías", about:"Acerca de", contact:"Contacto", blog:"Blog", login:"Iniciar sesión", quote:"Solicitar cotización", supplier:"Ser proveedor" },
 };
 
 // Maps the current site language to the correct static ingredients hub URL.
@@ -63,6 +63,12 @@ export function Navbar({ lang, setLang, cartCount }) {
                 View Enquiry
               </Link>
             )}
+            {/* Supplier entry point — first-time suppliers apply here */}
+            <Link to="/supplier" style={{ color:"#0EA5A0", fontSize:12, fontWeight:600, textDecoration:"none", padding:"7px 10px", whiteSpace:"nowrap" }}
+              onMouseEnter={e=>e.target.style.color="#0b8a86"}
+              onMouseLeave={e=>e.target.style.color="#0EA5A0"}>
+              {t.supplier}
+            </Link>
             <button onClick={()=>setShowLogin(true)} style={{ background:"none", border:"1px solid #e2e8f0", color:"#0D1F3C", borderRadius:6, padding:"7px 16px", fontSize:12, cursor:"pointer" }}>{t.login}</button>
             <Link to="/enquiry">
               <button style={{ background:"#0D1F3C", border:"none", color:"white", borderRadius:6, padding:"8px 18px", fontSize:12, fontWeight:500, cursor:"pointer" }}>{t.quote}</button>
@@ -95,7 +101,7 @@ export function LoginModal({ onClose }) {
   }
 
   async function verifyOtp(){
-    if(!otp.trim()){setError("Please enter the OTP");return;}
+    if(!otp.trim()){setError("Please enter the code");return;}
     setLoading(true);setError("");
     try{
       const {error}=await supabase.auth.verifyOtp({email,token:otp,type:"email"});
@@ -121,20 +127,24 @@ export function LoginModal({ onClose }) {
           </div>
         ):(
           <>
-            <div style={{fontFamily:"'DM Serif Display',serif",fontSize:22,color:"#0D1F3C",marginBottom:6}}>{step==="email"?"Login to your account":step==="otp"?"Enter your OTP":"Check your email"}</div>
-            <div style={{fontSize:13,color:"#64748b",marginBottom:24}}>{step==="email"?"Enter your business email. We'll send a login link or code.":step==="otp"?`We sent a 6-digit code to ${email}`:`We sent a login link to ${email}. Click it to sign in — or enter the code below if you received one.`}</div>
+            <div style={{fontFamily:"'DM Serif Display',serif",fontSize:22,color:"#0D1F3C",marginBottom:6}}>{step==="email"?"Login to your account":"Enter your code"}</div>
+            <div style={{fontSize:13,color:"#64748b",marginBottom:24}}>{step==="email"?"Enter your business email. We'll email you a 6-digit code.":`We sent a 6-digit code to ${email}`}</div>
             {step==="email"
               ?<input value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendOtp()} type="email" placeholder="you@company.com" style={{width:"100%",border:"1px solid #e2e8f0",borderRadius:8,padding:"10px 14px",fontSize:14,outline:"none",marginBottom:12}}/>
               :<div>
                 <input value={otp} onChange={e=>setOtp(e.target.value)} onKeyDown={e=>e.key==="Enter"&&verifyOtp()} type="text" placeholder="123456" maxLength={8} style={{width:"100%",border:"1px solid #e2e8f0",borderRadius:8,padding:"10px 14px",fontSize:24,letterSpacing:8,outline:"none",marginBottom:12,textAlign:"center"}}/>
-                <p style={{fontSize:11,color:"#94a3b8",textAlign:"center",marginBottom:12}}>No code? Check your email for a magic link instead.</p>
               </div>
             }
             {error&&<div style={{fontSize:12,color:"#ef4444",marginBottom:10}}>{error}</div>}
             <button onClick={step==="email"?sendOtp:verifyOtp} disabled={loading} style={{width:"100%",background:"#0D1F3C",color:"white",border:"none",borderRadius:8,padding:11,fontSize:13,fontWeight:500,cursor:"pointer",opacity:loading?0.7:1}}>
-              {loading?"Please wait…":step==="email"?"Send Login Link →":"Verify Code →"}
+              {loading?"Please wait…":step==="email"?"Email me a code →":"Verify code →"}
             </button>
             {step==="otp"&&<button onClick={()=>{setStep("email");setOtp("");}} style={{width:"100%",background:"none",border:"none",color:"#64748b",fontSize:12,marginTop:10,cursor:"pointer"}}>← Use a different email</button>}
+            {step==="email"&&(
+              <div style={{marginTop:16,paddingTop:16,borderTop:"1px solid #f1f5f9",textAlign:"center"}}>
+                <Link to="/supplier" onClick={onClose} style={{color:"#0EA5A0",fontSize:12,fontWeight:600,textDecoration:"none"}}>Supplier? Enter the supplier portal →</Link>
+              </div>
+            )}
           </>
         )}
       </div>
