@@ -352,6 +352,11 @@ export default function Supplier() {
         <p style={{ fontSize: 13, color: "#64748b", marginBottom: 24, lineHeight: 1.7 }}>Login with your business email to manage your products, documents and quotations.</p>
         <button onClick={() => setShowLogin(true)} style={{ background: "#0D1F3C", color: "white", border: "none", borderRadius: 8, padding: "12px 32px", fontSize: 13, fontWeight: 500, cursor: "pointer", width: "100%" }}>Login with OTP →</button>
         <p style={{ fontSize: 11, color: "#94a3b8", marginTop: 12 }}>No password needed · OTP sent to your email</p>
+        <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid #f1f5f9" }}>
+          <Link to="/account?buyer=1" style={{ color: "#1877F2", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
+            Are you a buyer? Buyer account →
+          </Link>
+        </div>
         {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
       </div>
     </div>
@@ -369,7 +374,7 @@ export default function Supplier() {
         <p style={{ fontSize: 13, color: "#64748b", marginBottom: 20, lineHeight: 1.7 }}>
           <strong>{session.user.email}</strong> isn't linked to a supplier profile. If you'd like to supply ingredients to Ingredientz, email <a href="mailto:sales@ingredientz.co" style={{ color: "#1877F2" }}>sales@ingredientz.co</a> and we'll set you up.
         </p>
-        <Link to="/account"><button style={{ background: "#0D1F3C", color: "white", border: "none", borderRadius: 8, padding: "10px 24px", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Go to buyer account</button></Link>
+        <Link to="/account?buyer=1"><button style={{ background: "#0D1F3C", color: "white", border: "none", borderRadius: 8, padding: "10px 24px", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Go to buyer account</button></Link>
         <button onClick={logout} style={{ background: "none", border: "1px solid #e2e8f0", color: "#64748b", borderRadius: 8, padding: "10px 18px", fontSize: 13, cursor: "pointer", marginLeft: 8 }}>Logout</button>
       </div>
     </div>
@@ -439,7 +444,7 @@ export default function Supplier() {
                 {products.length > 0 && <span style={{ background: "#1877F2", color: "white", borderRadius: 20, padding: "1px 7px", fontSize: 9, fontWeight: 700 }}>{products.length}</span>}
               </button>
               <div style={{ height: 1, background: "#f1f5f9", margin: "12px 0" }} />
-              <Link to="/account" style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderRadius: 7, color: "#64748b", fontSize: 12, textDecoration: "none" }}>👤 Buyer account</Link>
+              <Link to="/account?buyer=1" style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderRadius: 7, color: "#64748b", fontSize: 12, textDecoration: "none" }}>👤 Buyer account</Link>
               <Link to="/products" style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderRadius: 7, color: "#64748b", fontSize: 12, textDecoration: "none" }}>🧪 Browse catalogue</Link>
             </div>
           </div>

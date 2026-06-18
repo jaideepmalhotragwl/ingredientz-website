@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase.js";
 import { LoginModal } from "../components/Navbar.jsx";
 
@@ -317,6 +317,17 @@ export default function Account() {
   const [mobMenuOpen, setMobMenuOpen] = useState(false);
   const [isSupplier, setIsSupplier]   = useState(false); // also a supplier? -> show workspace switch
 
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Smart landing: a supplier with no buyer enquiries is sent to /supplier.
+  // The ?buyer=1 flag (set by "Buyer account" links from the supplier side) opts out, so no redirect loop.
+  useEffect(() => {
+    if (!loading && session && isSupplier && enquiries.length === 0 && !searchParams.get("buyer")) {
+      navigate("/supplier", { replace: true });
+    }
+  }, [loading, session, isSupplier, enquiries, searchParams, navigate]);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -362,6 +373,11 @@ export default function Account() {
           Login with OTP →
         </button>
         <p style={{ fontSize: 11, color: "#94a3b8", marginTop: 12 }}>No password needed · OTP sent to your email</p>
+        <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid #f1f5f9" }}>
+          <Link to="/supplier" style={{ color: "#0EA5A0", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
+            Supplier? Enter the supplier portal →
+          </Link>
+        </div>
         {showLogin && <LoginModal onClose={() => setShowLogin(false)}/>}
       </div>
     </div>
