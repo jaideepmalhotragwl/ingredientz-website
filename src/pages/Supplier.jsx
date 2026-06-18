@@ -121,6 +121,22 @@ function AddProduct({ supplier, email, categories, onAdded, onUseCatalogue }) {
         if (msdsRef.current?.files?.[0]) await uploadDoc(msdsRef.current.files[0], "msds", sp.id);
       } catch (docErr) { console.error("Document upload failed:", docErr); }
 
+      // 4) notify the Ingredientz team that something is waiting for approval (best effort)
+      try {
+        await supabase.functions.invoke("send-email", {
+          body: {
+            from: "Ingredientz <sales@mail.ingredientz.co>",
+            to: "sales@ingredientz.co",
+            reply_to: "sales@ingredientz.co",
+            subject: `New supplier product pending — ${f.name.trim()} (${supplier.company || ""})`,
+            html: `<p>A supplier submitted a new product for approval.</p>
+                   <p><b>Supplier:</b> ${supplier.company || email}</p>
+                   <p><b>Product:</b> ${f.name.trim()}</p>
+                   <p>Review it in the CRM &rarr; Approvals.</p>`,
+          },
+        });
+      } catch (notifyErr) { console.error("Admin notify failed:", notifyErr); }
+
       alert("Submitted for approval. We'll email you when it's reviewed.");
       onAdded();
     } catch (err) {
