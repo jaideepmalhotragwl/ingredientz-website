@@ -213,8 +213,8 @@ export default function Home({ lang, cart, onAddToCart }) {
             @keyframes ingScan { 0%,100%{ top:30%; } 50%{ top:70%; } }
             @media (prefers-reduced-motion: reduce) { .ing-scan { animation: none !important; top: 50% !important; } }
           `}</style>
-          <Link to="/formula" style={{ textDecoration: "none", display: "inline-block", marginBottom: 24 }}>
-            <div style={{ display: "inline-flex", alignItems: "stretch", background: "linear-gradient(135deg, rgba(201,168,76,0.15), rgba(14,165,160,0.06))", border: "1px solid rgba(201,168,76,0.38)", borderRadius: 14, overflow: "hidden", maxWidth: 560, cursor: "pointer" }}
+          <Link to="/formula" style={{ textDecoration: "none", display: "block", marginBottom: 24 }}>
+            <div style={{ display: "flex", alignItems: "stretch", background: "linear-gradient(135deg, rgba(201,168,76,0.15), rgba(14,165,160,0.06))", border: "1px solid rgba(201,168,76,0.38)", borderRadius: 14, overflow: "hidden", width: "100%", cursor: "pointer" }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(201,168,76,0.65)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(201,168,76,0.38)"; e.currentTarget.style.transform = "none"; }}>
               {/* scanning label graphic */}
@@ -233,7 +233,7 @@ export default function Home({ lang, cart, onAddToCart }) {
               <div style={{ padding: "20px 26px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
                 <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 22, color: "#fff", lineHeight: 1.18, letterSpacing: "-0.01em" }}>Turn your label into a quote</div>
                 <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginTop: 6, lineHeight: 1.5 }}>We read every ingredient and calculate your quantities.</div>
-                <span style={{ display: "inline-block", background: "#C9A84C", color: "#0D1F3C", fontSize: 14, fontWeight: 700, padding: "11px 22px", borderRadius: 9, marginTop: 16, alignSelf: "flex-start" }}>Upload your label →</span>
+                <span style={{ display: "inline-block", background: "#0EA5A0", color: "#fff", fontSize: 14, fontWeight: 600, padding: "11px 22px", borderRadius: 9, marginTop: 16, alignSelf: "flex-start" }}>Upload your label →</span>
               </div>
             </div>
           </Link>
