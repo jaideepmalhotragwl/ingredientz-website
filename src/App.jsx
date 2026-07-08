@@ -14,6 +14,7 @@ import Blog from "./pages/Blog.jsx";
 import BlogPost from "./pages/BlogPost.jsx";
 import About from "./pages/About.jsx";
 import Contact from "./pages/Contact.jsx";
+import FormulaTool from "./pages/FormulaTool.jsx";
 import "./index.css";
 export default function App() {
   const [lang, setLang] = useState("EN");
@@ -34,6 +35,7 @@ export default function App() {
             <Route path="/products/:slug" element={<ProductDetail cart={cart} onAddToCart={addToCart}/>}/>
             <Route path="/categories" element={<Categories/>}/>
             <Route path="/enquiry" element={<Enquiry lang={lang} cart={cart} onRemoveFromCart={removeFromCart} onClearCart={clearCart}/>}/>
+            <Route path="/formula" element={<FormulaTool/>}/>
             <Route path="/account" element={<Account/>}/>
             <Route path="/supplier" element={<Supplier/>}/>
             <Route path="/blog" element={<Blog/>}/>
