@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase.js";
 import { ProductCard } from "../components/ProductCard.jsx";
 import { SEO, PAGE_SEO } from "../components/SEO.jsx";
 
+
 const CAT_ICONS = {
   "Botanical Extracts":"🌿","Herbal Powders":"🌱","Fruit Powders":"🍊",
   "Mushroom Extracts":"🍄","Vitamins & Minerals":"⚗️","Greens & Superfoods":"🥬",
@@ -13,6 +14,7 @@ const CAT_ICONS = {
   "Premixes & Blends":"⚖️","Pharmaceutical":"💊","Dairy Ingredients":"🥛",
   "Feed":"🌾","Pet Food":"🐾",
 };
+
 
 const T = {
   EN: {
@@ -133,6 +135,7 @@ const T = {
   }
 };
 
+
 export default function Home({ lang, cart, onAddToCart }) {
   const [products, setProducts]     = useState([]);
   const [cats, setCats]             = useState([]);
@@ -142,15 +145,18 @@ export default function Home({ lang, cart, onAddToCart }) {
   const [ctaDone, setCtaDone]       = useState(false);
   const t = T[lang] || T.EN;
 
+
   useEffect(() => {
     supabase.from("products").select("*,product_categories(name)").eq("status","active").eq("featured",true).order("name").limit(6).then(({ data }) => setProducts(data || []));
     supabase.from("product_categories").select("*").eq("active",true).order("sort_order").then(({ data }) => setCats(data || []));
   }, []);
 
+
   function handleSearch(e) {
     e.preventDefault();
     if (search.trim()) window.location.href = `/products?q=${encodeURIComponent(search)}`;
   }
+
 
   async function submitCta(e) {
     e.preventDefault();
@@ -172,7 +178,9 @@ export default function Home({ lang, cart, onAddToCart }) {
     finally { setCtaSubmitting(false); }
   }
 
+
   const cartIds = new Set(cart.map(p => p.id));
+
 
   return (
     <div>
@@ -193,11 +201,24 @@ export default function Home({ lang, cart, onAddToCart }) {
           </h1>
           <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 15, lineHeight: 1.7, maxWidth: 520, marginBottom: 28, fontWeight: 300 }}>{t.sub}</p>
 
+
           <form onSubmit={handleSearch} style={{ display: "flex", maxWidth: 540, marginBottom: 20, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, overflow: "hidden" }}>
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t.search}
               style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "white", fontSize: 13, padding: "13px 16px" }}/>
             <button type="submit" style={{ background: "#0EA5A0", border: "none", color: "white", padding: "13px 24px", fontSize: 12, fontWeight: 500 }}>{t.searchBtn}</button>
           </form>
+
+          {/* Label to Ingredients — formula sourcing CTA */}
+          <Link to="/formula" style={{ textDecoration: "none" }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 12, background: "rgba(201,168,76,0.12)", border: "1px solid rgba(201,168,76,0.35)", borderRadius: 10, padding: "12px 18px", marginBottom: 24, cursor: "pointer" }}>
+              <span style={{ fontSize: 22 }}>🔬</span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#C9A84C" }}>Have a product formula? Upload the label →</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>We read every ingredient, calculate your quantities, and quote it.</div>
+              </div>
+            </div>
+          </Link>
+
 
           <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 36 }}>
             {[t.trust1, t.trust2, t.trust3, t.trust4].map(item => (
@@ -207,6 +228,7 @@ export default function Home({ lang, cart, onAddToCart }) {
               </span>
             ))}
           </div>
+
 
           <div style={{ display: "flex", gap: 40, paddingTop: 28, borderTop: "1px solid rgba(255,255,255,0.07)" }}>
             {[["500+","Products"],["10+","Countries"],["200+","Brands Served"],["48h","Quote Turnaround"]].map(([v,l]) => (
@@ -218,6 +240,7 @@ export default function Home({ lang, cart, onAddToCart }) {
           </div>
         </div>
       </section>
+
 
       {/* SUPERFACTORY SECTION */}
       <section style={{ padding:"56px 0", background:"white", borderBottom:"1px solid #f1f5f9" }}>
@@ -251,6 +274,7 @@ export default function Home({ lang, cart, onAddToCart }) {
         </div>
       </section>
 
+
       {/* CATEGORIES */}
       <section style={{ padding: "56px 0", background: "#FAF8F3" }}>
         <div className="container">
@@ -275,6 +299,7 @@ export default function Home({ lang, cart, onAddToCart }) {
         </div>
       </section>
 
+
       {/* FEATURED PRODUCTS */}
       <section style={{ padding: "56px 0" }}>
         <div className="container">
@@ -293,6 +318,7 @@ export default function Home({ lang, cart, onAddToCart }) {
         </div>
       </section>
 
+
       {/* HOW IT WORKS */}
       <section style={{ padding: "56px 0", background: "#FAF8F3" }}>
         <div className="container">
@@ -310,6 +336,7 @@ export default function Home({ lang, cart, onAddToCart }) {
         </div>
       </section>
 
+
       {/* CTA */}
       <section style={{ padding: "0 0 56px" }}>
         <div className="container">
@@ -326,6 +353,7 @@ export default function Home({ lang, cart, onAddToCart }) {
                 ))}
               </div>
             </div>
+
 
             {ctaDone ? (
               <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: 28, textAlign: "center" }}>
