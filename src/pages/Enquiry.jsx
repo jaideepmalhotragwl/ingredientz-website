@@ -141,6 +141,17 @@ export default function Enquiry({ lang, cart, onRemoveFromCart, onClearCart }) {
                 </div>
               ))}
 
+              {/* Formula tool prompt — for customers sourcing a whole formula */}
+              <Link to="/formula" style={{ display:"block", textDecoration:"none", marginBottom: 12 }}>
+                <div style={{ background:"#f0fdfa", border:"1px solid #99f6e4", borderRadius:10, padding:"11px 14px", display:"flex", alignItems:"center", gap:10 }}>
+                  <span style={{ fontSize:20 }}>🔬</span>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:12, fontWeight:600, color:"#0D1F3C" }}>Sourcing a full formula?</div>
+                    <div style={{ fontSize:11, color:"#0f766e" }}>Upload your product label — we'll quantify every ingredient. Label to Ingredients →</div>
+                  </div>
+                </div>
+              </Link>
+
               {/* Custom product */}
               <div style={{ marginBottom: 16 }}>
                 <label style={{ fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: 0.5, display: "block", marginBottom: 5 }}>
