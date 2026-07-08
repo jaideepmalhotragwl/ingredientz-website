@@ -208,13 +208,32 @@ export default function Home({ lang, cart, onAddToCart }) {
             <button type="submit" style={{ background: "#0EA5A0", border: "none", color: "white", padding: "13px 24px", fontSize: 12, fontWeight: 500 }}>{t.searchBtn}</button>
           </form>
 
-          {/* Label to Ingredients — formula sourcing CTA */}
-          <Link to="/formula" style={{ textDecoration: "none" }}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 12, background: "rgba(201,168,76,0.12)", border: "1px solid rgba(201,168,76,0.35)", borderRadius: 10, padding: "12px 18px", marginBottom: 24, cursor: "pointer" }}>
-              <span style={{ fontSize: 22 }}>🔬</span>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#C9A84C" }}>Have a product formula? Upload the label →</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>We read every ingredient, calculate your quantities, and quote it.</div>
+          {/* Label to Ingredients — scanning-label CTA */}
+          <style>{`
+            @keyframes ingScan { 0%,100%{ top:30%; } 50%{ top:70%; } }
+            @media (prefers-reduced-motion: reduce) { .ing-scan { animation: none !important; top: 50% !important; } }
+          `}</style>
+          <Link to="/formula" style={{ textDecoration: "none", display: "inline-block", marginBottom: 24 }}>
+            <div style={{ display: "inline-flex", alignItems: "stretch", background: "linear-gradient(135deg, rgba(201,168,76,0.15), rgba(14,165,160,0.06))", border: "1px solid rgba(201,168,76,0.38)", borderRadius: 14, overflow: "hidden", maxWidth: 560, cursor: "pointer" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(201,168,76,0.65)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(201,168,76,0.38)"; e.currentTarget.style.transform = "none"; }}>
+              {/* scanning label graphic */}
+              <div style={{ width: 100, background: "rgba(255,255,255,0.06)", borderRight: "1px solid rgba(201,168,76,0.22)", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <div style={{ width: 56, height: 72, background: "#fff", borderRadius: 5, padding: "8px 7px", boxShadow: "0 6px 16px rgba(0,0,0,0.35)" }}>
+                  <div style={{ height: 4.5, background: "#0D1F3C", borderRadius: 2, width: "72%", marginBottom: 5 }} />
+                  <div style={{ height: 2.5, background: "#cbd5e1", borderRadius: 2, marginBottom: 3.5 }} />
+                  <div style={{ height: 2.5, background: "#cbd5e1", borderRadius: 2, marginBottom: 3.5, width: "58%" }} />
+                  <div style={{ height: 2.5, background: "#cbd5e1", borderRadius: 2, marginBottom: 3.5 }} />
+                  <div style={{ height: 2.5, background: "#cbd5e1", borderRadius: 2, marginBottom: 3.5, width: "58%" }} />
+                  <div style={{ height: 2.5, background: "#C9A84C", borderRadius: 2, width: "45%" }} />
+                </div>
+                <div className="ing-scan" style={{ position: "absolute", left: 24, right: 24, height: 2, background: "linear-gradient(90deg, transparent, #C9A84C, transparent)", boxShadow: "0 0 10px #C9A84C", top: "30%", animation: "ingScan 2.4s ease-in-out infinite" }} />
+              </div>
+              {/* text */}
+              <div style={{ padding: "20px 26px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 22, color: "#fff", lineHeight: 1.18, letterSpacing: "-0.01em" }}>Turn your label into a quote</div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginTop: 6, lineHeight: 1.5 }}>We read every ingredient and calculate your quantities.</div>
+                <span style={{ display: "inline-block", background: "#C9A84C", color: "#0D1F3C", fontSize: 14, fontWeight: 700, padding: "11px 22px", borderRadius: 9, marginTop: 16, alignSelf: "flex-start" }}>Upload your label →</span>
               </div>
             </div>
           </Link>
