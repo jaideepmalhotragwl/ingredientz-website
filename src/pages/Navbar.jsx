@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase.js";
-
 const LANGS = ["EN","FR","DE","ES"];
 const T = {
   EN: { ingredients:"Ingredients", products:"Products", categories:"Categories", about:"About", contact:"Contact", blog:"Blog", login:"Login", quote:"Request Quote", supplier:"Become a supplier", formula:"Label to Ingredients" },
@@ -9,16 +8,13 @@ const T = {
   DE: { ingredients:"Inhaltsstoffe", products:"Produkte", categories:"Kategorien", about:"Über uns", contact:"Kontakt", blog:"Blog", login:"Anmelden", quote:"Angebot anfordern", supplier:"Lieferant werden", formula:"Etikett zu Zutaten" },
   ES: { ingredients:"Ingredientes", products:"Productos", categories:"Categorías", about:"Acerca de", contact:"Contacto", blog:"Blog", login:"Iniciar sesión", quote:"Solicitar cotización", supplier:"Ser proveedor", formula:"Etiqueta a Ingredientes" },
 };
-
 // Maps the current site language to the correct static ingredients hub URL.
 // EN -> /ingredients, others -> /<lang>/ingredients
 const INGREDIENTS_HREF = { EN:"/ingredients", FR:"/fr/ingredients", DE:"/de/ingredients", ES:"/es/ingredients" };
-
 export function Navbar({ lang, setLang, cartCount }) {
   const [showLogin, setShowLogin] = useState(false);
   const t = T[lang] || T.EN;
   const ingredientsHref = INGREDIENTS_HREF[lang] || INGREDIENTS_HREF.EN;
-
   return (
     <>
       {/* Language bar */}
@@ -32,7 +28,6 @@ export function Navbar({ lang, setLang, cartCount }) {
           ))}
         </div>
       </div>
-
       {/* Main nav */}
       <nav style={{ background:"white", borderBottom:"1px solid #e2e8f0", position:"sticky", top:0, zIndex:100, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
         <div className="container" style={{ height:64, display:"flex", alignItems:"center", gap:24 }}>
@@ -86,15 +81,15 @@ export function Navbar({ lang, setLang, cartCount }) {
     </>
   );
 }
-
-export function LoginModal({ onClose }) {
+// redirectTo — where to send a NON-supplier after login (default the buyer account).
+// A registered/pending supplier is always routed to /supplier automatically.
+export function LoginModal({ onClose, redirectTo="/account" }) {
   const [email,setEmail]=useState("");
   const [otp,setOtp]=useState("");
   const [step,setStep]=useState("email");
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState("");
   const navigate=useNavigate();
-
   async function sendOtp(){
     if(!email.trim()){setError("Please enter your email");return;}
     setLoading(true);setError("");
@@ -105,19 +100,28 @@ export function LoginModal({ onClose }) {
     }catch(e){setError(e.message);}
     finally{setLoading(false);}
   }
-
+  function finish(dest){ setStep("done"); setTimeout(()=>{ onClose(); navigate(dest); }, 1000); }
   async function verifyOtp(){
     if(!otp.trim()){setError("Please enter the code");return;}
     setLoading(true);setError("");
     try{
-      const {error}=await supabase.auth.verifyOtp({email,token:otp,type:"email"});
+      const { data, error }=await supabase.auth.verifyOtp({email,token:otp,type:"email"});
       if(error)throw error;
-      setStep("done");
-      setTimeout(()=>{onClose();navigate("/account");},1200);
-    }catch(e){setError(e.message);}
-    finally{setLoading(false);}
+      const savedRole = data?.user?.user_metadata?.role;
+      // Already a registered/pending supplier → supplier portal.
+      let isSupplier=false;
+      try{ const { data: sup } = await supabase.from("suppliers").select("id").ilike("email", email.trim()).maybeSingle(); isSupplier=!!sup; }catch(e){}
+      if(isSupplier || savedRole==="supplier" || savedRole==="both"){ finish("/supplier"); return; }
+      if(savedRole==="buyer"){ finish(redirectTo || "/account"); return; }
+      // Brand-new user with no chosen role yet → ask.
+      setStep("choose"); setLoading(false);
+    }catch(e){ setError(e.message); setLoading(false); }
   }
-
+  async function chooseRole(role){
+    setLoading(true);
+    try{ await supabase.auth.updateUser({ data:{ role } }); }catch(e){}
+    finish(role==="buyer" ? "/account" : "/supplier");   // supplier & both → onboarding portal
+  }
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
       <div style={{background:"white",borderRadius:16,padding:32,width:"100%",maxWidth:400,position:"relative"}}>
@@ -125,11 +129,29 @@ export function LoginModal({ onClose }) {
         <div style={{textAlign:"center",marginBottom:20}}>
           <img src="/logo.png" alt="Ingredientz" style={{height:32,objectFit:"contain"}}/>
         </div>
-        {step==="done"?(
+        {step==="choose"?(
+          <div>
+            <div style={{fontFamily:"'DM Serif Display',serif",fontSize:22,color:"#0D1F3C",marginBottom:6,textAlign:"center"}}>How will you use Ingredientz?</div>
+            <div style={{fontSize:13,color:"#64748b",marginBottom:18,textAlign:"center"}}>Pick one to get started — you can switch anytime.</div>
+            {[
+              ["buyer","🛒","I'm a buyer","Source ingredients, request quotes, place orders"],
+              ["supplier","🏭","I'm a supplier","List your products & manage documents"],
+              ["both","🔁","Both","I buy and I supply"]
+            ].map(([role,icon,title,desc])=>(
+              <button key={role} onClick={()=>chooseRole(role)} disabled={loading}
+                style={{width:"100%",textAlign:"left",display:"flex",gap:12,alignItems:"center",background:"white",border:"1px solid #e2e8f0",borderRadius:10,padding:"12px 14px",marginBottom:10,cursor:loading?"not-allowed":"pointer"}}
+                onMouseEnter={e=>e.currentTarget.style.borderColor="#0D1F3C"}
+                onMouseLeave={e=>e.currentTarget.style.borderColor="#e2e8f0"}>
+                <span style={{fontSize:22}}>{icon}</span>
+                <span><span style={{display:"block",fontWeight:600,fontSize:14,color:"#0D1F3C"}}>{title}</span><span style={{fontSize:12,color:"#64748b"}}>{desc}</span></span>
+              </button>
+            ))}
+          </div>
+        ):step==="done"?(
           <div style={{textAlign:"center",padding:"16px 0"}}>
             <div style={{fontSize:40,marginBottom:12}}>✓</div>
             <div style={{fontSize:16,fontWeight:600,color:"#0D1F3C"}}>Login successful</div>
-            <div style={{fontSize:13,color:"#64748b",marginTop:6}}>Redirecting to your account…</div>
+            <div style={{fontSize:13,color:"#64748b",marginTop:6}}>Redirecting…</div>
           </div>
         ):(
           <>
