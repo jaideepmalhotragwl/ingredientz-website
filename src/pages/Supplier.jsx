@@ -2,14 +2,12 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase.js";
 import { LoginModal } from "../components/Navbar.jsx";
-
 // status chip colours (reuse the portal's STAGE_COLORS palette)
 const STATUS = {
   active:           { label: "Approved",      bg: "#F0FDF4", color: "#166534", border: "#bbf7d0" },
   pending_approval: { label: "Pending review",bg: "#FFF7ED", color: "#c2410c", border: "#fed7aa" },
   rejected:         { label: "Needs changes", bg: "#FFF1F2", color: "#be123c", border: "#fecdd3" },
 };
-
 const styles = `
   @media (max-width: 768px) {
     .portal-grid { grid-template-columns: 1fr !important; }
@@ -20,10 +18,8 @@ const styles = `
     .portal-header-inner { flex-direction: column !important; gap: 8px !important; }
   }
 `;
-
 const slugify = (s) =>
   (s || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-
 // ── reusable bits ────────────────────────────────────────────────────────────
 function Chip({ status }) {
   const s = STATUS[status] || STATUS.pending_approval;
@@ -33,7 +29,6 @@ function Chip({ status }) {
     </span>
   );
 }
-
 function DocPill({ have, children }) {
   return (
     <span style={{
@@ -45,12 +40,10 @@ function DocPill({ have, children }) {
     }}>{children}</span>
   );
 }
-
 const inputStyle = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 8, padding: "9px 11px", fontSize: 13, fontFamily: "DM Sans,sans-serif", color: "#0D1F3C", outline: "none" };
 const labelStyle = { display: "block", fontSize: 11, fontWeight: 600, color: "#64748b", margin: "0 0 5px" };
 const sectionStyle = { fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".5px", color: "#1877F2", margin: "22px 0 12px", paddingTop: 14, borderTop: "1px solid #f1f5f9" };
 const slotStyle = { display: "flex", alignItems: "center", justifyContent: "space-between", border: "1px dashed #e2e8f0", borderRadius: 10, padding: "11px 13px", marginBottom: 10, background: "#fbfcfe" };
-
 // ── ADD A PRODUCT FORM ─────────────────────────────────────────────────────────
 function AddProduct({ supplier, email, categories, onAdded, onUseCatalogue }) {
   const [f, setF] = useState({ name: "", category_id: "", cas: "", hsn: "", unit: "kg", short: "", specs: "", price: "", lead: "", moq: "" });
@@ -58,7 +51,6 @@ function AddProduct({ supplier, email, categories, onAdded, onUseCatalogue }) {
   const [saving, setSaving] = useState(false);
   const coaRef = useRef(null), msdsRef = useRef(null);
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
-
   // live catalogue suggestions
   useEffect(() => {
     const q = f.name.trim();
@@ -72,7 +64,6 @@ function AddProduct({ supplier, email, categories, onAdded, onUseCatalogue }) {
     }, 250);
     return () => { cancelled = true; clearTimeout(t); };
   }, [f.name]);
-
   async function uploadDoc(file, docType, supplierProductId) {
     const path = `products/${supplier.id}/${supplierProductId}/${Date.now()}-${file.name}`;
     const { error } = await supabase.storage.from("supplier-docs").upload(path, file);
@@ -83,7 +74,6 @@ function AddProduct({ supplier, email, categories, onAdded, onUseCatalogue }) {
       file_url: data.publicUrl, file_name: file.name, uploaded_by: email,
     });
   }
-
   async function submit() {
     if (!f.name.trim()) { alert("Please enter a product name."); return; }
     setSaving(true);
@@ -102,7 +92,6 @@ function AddProduct({ supplier, email, categories, onAdded, onUseCatalogue }) {
         created_by: email,
       }).select().single();
       if (e1) throw e1;
-
       // 2) link it to this supplier (pending approval)
       const { data: sp, error: e2 } = await supabase.from("supplier_products").insert({
         supplier_id: supplier.id, product_id: prod.id, submitted_by_supplier: true,
@@ -114,13 +103,11 @@ function AddProduct({ supplier, email, categories, onAdded, onUseCatalogue }) {
       }).select().single();
       // if linking fails, remove the product we just created so nothing is left half-saved
       if (e2) { await supabase.from("products").delete().eq("id", prod.id); throw e2; }
-
       // 3) upload any documents (best effort — a doc hiccup won't undo the submission)
       try {
         if (coaRef.current?.files?.[0])  await uploadDoc(coaRef.current.files[0], "coa", sp.id);
         if (msdsRef.current?.files?.[0]) await uploadDoc(msdsRef.current.files[0], "msds", sp.id);
       } catch (docErr) { console.error("Document upload failed:", docErr); }
-
       // 4) notify the Ingredientz team that something is waiting for approval (best effort)
       try {
         await supabase.functions.invoke("send-email", {
@@ -136,7 +123,6 @@ function AddProduct({ supplier, email, categories, onAdded, onUseCatalogue }) {
           },
         });
       } catch (notifyErr) { console.error("Admin notify failed:", notifyErr); }
-
       alert("Submitted for approval. We'll email you when it's reviewed.");
       onAdded();
     } catch (err) {
@@ -145,7 +131,6 @@ function AddProduct({ supplier, email, categories, onAdded, onUseCatalogue }) {
       setSaving(false);
     }
   }
-
   return (
     <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 12, padding: 18 }}>
       <div className="sup-row2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
@@ -175,7 +160,6 @@ function AddProduct({ supplier, email, categories, onAdded, onUseCatalogue }) {
           </select>
         </div>
       </div>
-
       <div className="sup-row3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
         <div style={{ marginBottom: 14 }}><label style={labelStyle}>CAS number</label><input style={inputStyle} value={f.cas} onChange={set("cas")} placeholder="optional" /></div>
         <div style={{ marginBottom: 14 }}><label style={labelStyle}>HSN code</label><input style={inputStyle} value={f.hsn} onChange={set("hsn")} placeholder="optional" /></div>
@@ -183,17 +167,14 @@ function AddProduct({ supplier, email, categories, onAdded, onUseCatalogue }) {
           <select style={inputStyle} value={f.unit} onChange={set("unit")}><option>kg</option><option>g</option><option>L</option><option>ton</option></select>
         </div>
       </div>
-
       <div style={{ marginBottom: 14 }}><label style={labelStyle}>Short description</label><input style={inputStyle} value={f.short} onChange={set("short")} placeholder="One line buyers will see" /></div>
       <div style={{ marginBottom: 14 }}><label style={labelStyle}>Specifications</label><textarea style={{ ...inputStyle, minHeight: 62, resize: "vertical" }} value={f.specs} onChange={set("specs")} placeholder="Assay, particle size, solvent, origin…" /></div>
-
       <div style={sectionStyle}>Your commercial terms</div>
       <div className="sup-row3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
         <div style={{ marginBottom: 14 }}><label style={labelStyle}>Your price (USD)</label><input style={inputStyle} value={f.price} onChange={set("price")} placeholder="28.00" /></div>
         <div style={{ marginBottom: 14 }}><label style={labelStyle}>Lead time (days)</label><input style={inputStyle} value={f.lead} onChange={set("lead")} placeholder="21" /></div>
         <div style={{ marginBottom: 14 }}><label style={labelStyle}>Min order qty</label><input style={inputStyle} value={f.moq} onChange={set("moq")} placeholder="100" /></div>
       </div>
-
       <div style={sectionStyle}>Product documents</div>
       <div style={slotStyle}>
         <div><b style={{ display: "block", fontSize: 13 }}>Certificate of Analysis (CoA)</b><span style={{ color: "#94a3b8", fontSize: 11.5 }}>PDF · recommended</span></div>
@@ -203,7 +184,6 @@ function AddProduct({ supplier, email, categories, onAdded, onUseCatalogue }) {
         <div><b style={{ display: "block", fontSize: 13 }}>Safety Data Sheet (MSDS)</b><span style={{ color: "#94a3b8", fontSize: 11.5 }}>PDF · recommended</span></div>
         <input type="file" ref={msdsRef} accept=".pdf,.png,.jpg,.jpeg" style={{ fontSize: 12 }} />
       </div>
-
       <div style={{ marginTop: 18 }}>
         <button onClick={submit} disabled={saving}
           style={{ background: "#0D1F3C", color: "white", border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.7 : 1 }}>
@@ -214,13 +194,11 @@ function AddProduct({ supplier, email, categories, onAdded, onUseCatalogue }) {
     </div>
   );
 }
-
 // ── ADD FROM CATALOGUE ───────────────────────────────────────────────────────
 function Catalogue({ supplier, onAdded }) {
   const [q, setQ] = useState("");
   const [rows, setRows] = useState([]);
   const [busy, setBusy] = useState(null);
-
   useEffect(() => {
     let cancelled = false;
     const t = setTimeout(async () => {
@@ -230,7 +208,6 @@ function Catalogue({ supplier, onAdded }) {
     }, 250);
     return () => { cancelled = true; clearTimeout(t); };
   }, [q]);
-
   async function supplyThis(p) {
     setBusy(p.id);
     try {
@@ -245,7 +222,6 @@ function Catalogue({ supplier, onAdded }) {
       alert("Something went wrong: " + err.message);
     } finally { setBusy(null); }
   }
-
   return (
     <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 12, padding: 18 }}>
       <p style={{ marginBottom: 12, fontSize: 13, color: "#475569" }}>Already in our catalogue? Pick what you supply — no approval needed.</p>
@@ -263,7 +239,6 @@ function Catalogue({ supplier, onAdded }) {
     </div>
   );
 }
-
 // ── COMPANY DOCUMENTS ──────────────────────────────────────────────────────────
 function CompanyDocs({ supplier, email, docs, onChanged }) {
   const [busy, setBusy] = useState(false);
@@ -307,14 +282,12 @@ function CompanyDocs({ supplier, email, docs, onChanged }) {
     </div>
   );
 }
-
 // ── APPLY TO SUPPLY (first-time onboarding) ─────────────────────────────────────
 function ApplyForm({ email, onApplied, onLogout }) {
   const [f, setF] = useState({ company: "", contact_name: "", country: "", phone: "", website: "", description: "", doc_type: "gmp" });
   const [saving, setSaving] = useState(false);
   const fileRef = useRef(null);
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
-
   async function submit() {
     if (!f.company.trim()) { alert("Please enter your company name."); return; }
     if (!fileRef.current?.files?.[0]) { alert("Please attach your GMP certificate or manufacturing licence."); return; }
@@ -333,7 +306,6 @@ function ApplyForm({ email, onApplied, onLogout }) {
         description: f.description || null,
       }).select().single();
       if (e1) throw e1;
-
       // 2) upload the one required document
       const file = fileRef.current.files[0];
       const path = `company/${sup.id}/${Date.now()}-${file.name}`;
@@ -346,7 +318,6 @@ function ApplyForm({ email, onApplied, onLogout }) {
           file_url: pub.publicUrl, file_name: file.name, uploaded_by: email,
         });
       }
-
       // 3) notify the Ingredientz team (best effort)
       try {
         await supabase.functions.invoke("send-email", {
@@ -362,13 +333,11 @@ function ApplyForm({ email, onApplied, onLogout }) {
           },
         });
       } catch (notifyErr) { console.error("Notify failed:", notifyErr); }
-
       onApplied();
     } catch (err) {
       alert("Something went wrong: " + err.message);
     } finally { setSaving(false); }
   }
-
   return (
     <div style={{ minHeight: "70vh", background: "#f8fafc" }}>
       <style>{styles}</style>
@@ -386,7 +355,6 @@ function ApplyForm({ email, onApplied, onLogout }) {
           </div>
         </div>
       </div>
-
       <div className="container" style={{ padding: "28px 40px", maxWidth: 820, margin: "0 auto" }}>
         <p style={{ fontSize: 13, color: "#64748b", lineHeight: 1.7, marginBottom: 18 }}>
           Tell us about your company and attach one credential. We'll review your application — once approved, your products
@@ -403,7 +371,6 @@ function ApplyForm({ email, onApplied, onLogout }) {
             <div style={{ marginBottom: 14 }}><label style={labelStyle}>Website</label><input style={inputStyle} value={f.website} onChange={set("website")} placeholder="optional" /></div>
           </div>
           <div style={{ marginBottom: 14 }}><label style={labelStyle}>About your company</label><textarea style={{ ...inputStyle, minHeight: 62, resize: "vertical" }} value={f.description} onChange={set("description")} placeholder="What you make, capabilities, certifications…" /></div>
-
           <div style={sectionStyle}>One credential (required)</div>
           <div className="sup-row2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, alignItems: "end" }}>
             <div style={{ marginBottom: 14 }}>
@@ -418,7 +385,6 @@ function ApplyForm({ email, onApplied, onLogout }) {
               <input type="file" ref={fileRef} accept=".pdf,.png,.jpg,.jpeg" style={{ fontSize: 12 }} />
             </div>
           </div>
-
           <div style={{ marginTop: 8 }}>
             <button onClick={submit} disabled={saving}
               style={{ background: "#0D1F3C", color: "white", border: "none", borderRadius: 8, padding: "11px 22px", fontSize: 13, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.7 : 1 }}>
@@ -431,7 +397,6 @@ function ApplyForm({ email, onApplied, onLogout }) {
     </div>
   );
 }
-
 // ── MAIN SUPPLIER PAGE ──────────────────────────────────────────────────────────
 export default function Supplier() {
   const [session, setSession]   = useState(null);
@@ -442,7 +407,6 @@ export default function Supplier() {
   const [loading, setLoading]   = useState(true);
   const [showLogin, setShowLogin] = useState(false);
   const [tab, setTab]           = useState("list"); // list | add | excel | cat
-
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -454,7 +418,6 @@ export default function Supplier() {
     });
     return () => subscription.unsubscribe();
   }, []);
-
   async function init(email) {
     setLoading(true);
     const { data: sup } = await supabase.from("suppliers").select("*").ilike("email", email).maybeSingle();
@@ -464,7 +427,6 @@ export default function Supplier() {
     }
     setLoading(false);
   }
-
   async function loadProducts(supplierId) {
     const { data } = await supabase.from("supplier_products")
       .select("*, products(name, unit, product_categories(name)), supplier_product_documents(doc_type)")
@@ -480,9 +442,7 @@ export default function Supplier() {
     setCategories(data || []);
   }
   function reload() { if (supplier) { loadProducts(supplier.id); loadCompanyDocs(supplier.id); } setTab("list"); }
-
   async function logout() { await supabase.auth.signOut(); setSession(null); setSupplier(undefined); setProducts([]); }
-
   // ── not logged in ──
   if (!session) return (
     <div style={{ minHeight: "70vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
@@ -497,21 +457,17 @@ export default function Supplier() {
             Are you a buyer? Buyer account →
           </Link>
         </div>
-        {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
+        {showLogin && <LoginModal onClose={() => setShowLogin(false)} redirectTo="/supplier" />}
       </div>
     </div>
   );
-
   if (loading) return (<div style={{ minHeight: "70vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8" }}><style>{styles}</style>Loading…</div>);
-
   // ── logged in but not a supplier yet → application form ──
   if (!supplier) return <ApplyForm email={session.user.email} onApplied={() => init(session.user.email)} onLogout={logout} />;
-
   // ── supplier dashboard ──
   const approved = products.filter((p) => p.status === "active").length;
   const pending  = products.filter((p) => p.status === "pending_approval").length;
   const rejected = products.filter((p) => p.status === "rejected").length;
-
   const TABS = [["list", "My list"], ["add", "Add a product"], ["excel", "Upload Excel"], ["cat", "Add from catalogue"]];
   const useCatalogueProduct = async (p) => {
     try {
@@ -522,11 +478,9 @@ export default function Supplier() {
       alert(`Added "${p.name}" to your products.`); reload();
     } catch (err) { alert("Something went wrong: " + err.message); }
   };
-
   return (
     <div style={{ minHeight: "70vh", background: "#f8fafc" }}>
       <style>{styles}</style>
-
       {/* Header */}
       <div style={{ background: "#0D1F3C", padding: "28px 0" }}>
         <div className="container">
@@ -547,7 +501,6 @@ export default function Supplier() {
           </div>
         </div>
       </div>
-
       <div className="container" style={{ padding: "28px 40px" }}>
         {supplier.status !== "active" && (
           <div style={{ background: "#FFF7ED", border: "1px solid #fed7aa", color: "#9a5413", borderRadius: 10, padding: "13px 16px", fontSize: 13, marginBottom: 18, lineHeight: 1.6 }}>
@@ -564,13 +517,11 @@ export default function Supplier() {
             </div>
           ))}
         </div>
-
         {pending > 0 && (
           <div style={{ background: "#FFF7ED", border: "1px solid #fed7aa", color: "#9a5413", borderRadius: 10, padding: "11px 14px", fontSize: 13, marginBottom: 22 }}>
             Pending products are awaiting Ingredientz approval — not visible to buyers yet. We'll email you when each is reviewed.
           </div>
         )}
-
         <div className="portal-grid" style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 24 }}>
           {/* Sidebar */}
           <div className="portal-sidebar">
@@ -585,7 +536,6 @@ export default function Supplier() {
               <Link to="/products" style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderRadius: 7, color: "#64748b", fontSize: 12, textDecoration: "none" }}>🧪 Browse catalogue</Link>
             </div>
           </div>
-
           {/* Main */}
           <div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
@@ -596,7 +546,6 @@ export default function Supplier() {
                 </button>
               ))}
             </div>
-
             {tab === "list" && (
               products.length === 0 ? (
                 <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 12, padding: "48px 24px", textAlign: "center" }}>
@@ -636,18 +585,14 @@ export default function Supplier() {
                 </div>
               )
             )}
-
             {tab === "add" && <AddProduct supplier={supplier} email={session.user.email} categories={categories} onAdded={reload} onUseCatalogue={useCatalogueProduct} />}
-
             {tab === "cat" && <Catalogue supplier={supplier} onAdded={reload} />}
-
             {tab === "excel" && (
               <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 12, padding: 18 }}>
                 <p style={{ marginBottom: 12, fontSize: 13, color: "#475569" }}>Bulk upload from an Excel file is coming in the next update.</p>
                 <p style={{ fontSize: 12.5, color: "#94a3b8" }}>For now, add products one at a time under <b>Add a product</b>, or pick from our catalogue.</p>
               </div>
             )}
-
             <div style={{ ...sectionStyle, marginTop: 26 }}>Company documents</div>
             <CompanyDocs supplier={supplier} email={session.user.email} docs={companyDocs} onChanged={() => loadCompanyDocs(supplier.id)} />
           </div>
