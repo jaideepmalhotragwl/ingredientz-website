@@ -81,17 +81,38 @@ export function Navbar({ lang, setLang, cartCount }) {
     </>
   );
 }
-// redirectTo — where to send a NON-supplier after login (default the buyer account).
-// A registered/pending supplier is always routed to /supplier automatically.
-export function LoginModal({ onClose, redirectTo="/account" }) {
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   LoginModal
+
+   One login for everyone. Many of our customers are CDMOs and distributors who
+   both buy and sell, so the account is not either/or — a company can hold a
+   supplier record, a customer record, or both, and the same person reaches
+   whichever exist.
+
+   Where they land:
+     supplier only        → /supplier
+     buyer, or both       → /account
+     neither, first visit → ask, then route by the same rule
+
+   The old version queried `suppliers` first and returned immediately on a hit,
+   which meant a CDMO with a supplier record could never reach the buyer side —
+   the buyer branch below it was unreachable. Both tables are now checked
+   together and the decision is made once, from everything we know.
+
+   `redirectTo` is honoured only when the person actually holds that role, so a
+   link from the supplier portal still lands on the supplier portal.
+   ────────────────────────────────────────────────────────────────────────── */
+export function LoginModal({ onClose, redirectTo }) {
   const [email,setEmail]=useState("");
   const [otp,setOtp]=useState("");
   const [step,setStep]=useState("email");
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState("");
   const navigate=useNavigate();
+
   async function sendOtp(){
-    if(!email.trim()){setError("Please enter your email");return;}
+    if(!email.trim()){setError("Enter your email");return;}
     setLoading(true);setError("");
     try{
       const {error}=await supabase.auth.signInWithOtp({email:email.trim(),options:{shouldCreateUser:true}});
@@ -100,28 +121,67 @@ export function LoginModal({ onClose, redirectTo="/account" }) {
     }catch(e){setError(e.message);}
     finally{setLoading(false);}
   }
+
   function finish(dest){ setStep("done"); setTimeout(()=>{ onClose(); navigate(dest); }, 1000); }
+
+  // Buyers and dual-role companies start on the buyer side; suppliers who only
+  // supply go to the portal. Both sides cross-link, so nobody is stuck.
+  function destinationFor({ isSupplier, isBuyer }) {
+    if (redirectTo === "/supplier" && isSupplier) return "/supplier";
+    if (isBuyer) return "/account";
+    if (isSupplier) return "/supplier";
+    return redirectTo || "/account";
+  }
+
+  // Look in both tables at once. `.limit(1)` rather than `.maybeSingle()` — a
+  // company with two records would otherwise throw and block the login.
+  async function lookupRoles(addr) {
+    const clean = addr.trim();
+    const [sup, cust] = await Promise.all([
+      supabase.from("suppliers").select("id").ilike("email", clean).limit(1),
+      supabase.from("customers").select("id").ilike("email", clean).limit(1),
+    ]);
+    return {
+      hasSupplierRecord: !!(sup.data && sup.data.length),
+      hasBuyerRecord:    !!(cust.data && cust.data.length),
+    };
+  }
+
   async function verifyOtp(){
-    if(!otp.trim()){setError("Please enter the code");return;}
+    if(!otp.trim()){setError("Enter the code");return;}
     setLoading(true);setError("");
     try{
       const { data, error }=await supabase.auth.verifyOtp({email,token:otp,type:"email"});
       if(error)throw error;
+
       const savedRole = data?.user?.user_metadata?.role;
-      // Already a registered/pending supplier → supplier portal.
-      let isSupplier=false;
-      try{ const { data: sup } = await supabase.from("suppliers").select("id").ilike("email", email.trim()).maybeSingle(); isSupplier=!!sup; }catch(e){}
-      if(isSupplier || savedRole==="supplier" || savedRole==="both"){ finish("/supplier"); return; }
-      if(savedRole==="buyer"){ finish(redirectTo || "/account"); return; }
-      // Brand-new user with no chosen role yet → ask.
+
+      let hasSupplierRecord=false, hasBuyerRecord=false;
+      try {
+        const r = await lookupRoles(email);
+        hasSupplierRecord = r.hasSupplierRecord;
+        hasBuyerRecord    = r.hasBuyerRecord;
+      } catch(e){ console.error("Role lookup failed:", e); }
+
+      const isSupplier = hasSupplierRecord || savedRole==="supplier" || savedRole==="both";
+      const isBuyer    = hasBuyerRecord    || savedRole==="buyer"    || savedRole==="both";
+
+      if (isSupplier || isBuyer) { finish(destinationFor({ isSupplier, isBuyer })); return; }
+
+      // Nothing on file and no role chosen yet — ask.
       setStep("choose"); setLoading(false);
     }catch(e){ setError(e.message); setLoading(false); }
   }
+
   async function chooseRole(role){
     setLoading(true);
-    try{ await supabase.auth.updateUser({ data:{ role } }); }catch(e){}
-    finish(role==="buyer" ? "/account" : "/supplier");   // supplier & both → onboarding portal
+    try{ await supabase.auth.updateUser({ data:{ role } }); }catch(e){ console.error("Could not save role:", e); }
+    finish(destinationFor({
+      isSupplier: role==="supplier" || role==="both",
+      isBuyer:    role==="buyer"    || role==="both",
+    }));
   }
+
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
       <div style={{background:"white",borderRadius:16,padding:32,width:"100%",maxWidth:400,position:"relative"}}>
@@ -135,8 +195,8 @@ export function LoginModal({ onClose, redirectTo="/account" }) {
             <div style={{fontSize:13,color:"#64748b",marginBottom:18,textAlign:"center"}}>Pick one to get started — you can switch anytime.</div>
             {[
               ["buyer","🛒","I'm a buyer","Source ingredients, request quotes, place orders"],
-              ["supplier","🏭","I'm a supplier","List your products & manage documents"],
-              ["both","🔁","Both","I buy and I supply"]
+              ["supplier","🏭","I'm a supplier","List your products and manage documents"],
+              ["both","🔁","Both","We buy and we supply"]
             ].map(([role,icon,title,desc])=>(
               <button key={role} onClick={()=>chooseRole(role)} disabled={loading}
                 style={{width:"100%",textAlign:"left",display:"flex",gap:12,alignItems:"center",background:"white",border:"1px solid #e2e8f0",borderRadius:10,padding:"12px 14px",marginBottom:10,cursor:loading?"not-allowed":"pointer"}}
@@ -146,12 +206,15 @@ export function LoginModal({ onClose, redirectTo="/account" }) {
                 <span><span style={{display:"block",fontWeight:600,fontSize:14,color:"#0D1F3C"}}>{title}</span><span style={{fontSize:12,color:"#64748b"}}>{desc}</span></span>
               </button>
             ))}
+            <div style={{fontSize:11,color:"#94a3b8",textAlign:"center",marginTop:4,lineHeight:1.6}}>
+              Buying and supplying both work from one account — you can move between them whenever you like.
+            </div>
           </div>
         ):step==="done"?(
           <div style={{textAlign:"center",padding:"16px 0"}}>
             <div style={{fontSize:40,marginBottom:12}}>✓</div>
-            <div style={{fontSize:16,fontWeight:600,color:"#0D1F3C"}}>Login successful</div>
-            <div style={{fontSize:13,color:"#64748b",marginTop:6}}>Redirecting…</div>
+            <div style={{fontSize:16,fontWeight:600,color:"#0D1F3C"}}>Logged in</div>
+            <div style={{fontSize:13,color:"#64748b",marginTop:6}}>Taking you through…</div>
           </div>
         ):(
           <>
@@ -160,12 +223,12 @@ export function LoginModal({ onClose, redirectTo="/account" }) {
             {step==="email"
               ?<input value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendOtp()} type="email" placeholder="you@company.com" style={{width:"100%",border:"1px solid #e2e8f0",borderRadius:8,padding:"10px 14px",fontSize:14,outline:"none",marginBottom:12}}/>
               :<div>
-                <input value={otp} onChange={e=>setOtp(e.target.value)} onKeyDown={e=>e.key==="Enter"&&verifyOtp()} type="text" placeholder="123456" maxLength={8} style={{width:"100%",border:"1px solid #e2e8f0",borderRadius:8,padding:"10px 14px",fontSize:24,letterSpacing:8,outline:"none",marginBottom:12,textAlign:"center"}}/>
+                <input value={otp} onChange={e=>setOtp(e.target.value)} onKeyDown={e=>e.key==="Enter"&&verifyOtp()} type="text" inputMode="numeric" autoComplete="one-time-code" placeholder="123456" maxLength={8} style={{width:"100%",border:"1px solid #e2e8f0",borderRadius:8,padding:"10px 14px",fontSize:24,letterSpacing:8,outline:"none",marginBottom:12,textAlign:"center"}}/>
               </div>
             }
             {error&&<div style={{fontSize:12,color:"#ef4444",marginBottom:10}}>{error}</div>}
             <button onClick={step==="email"?sendOtp:verifyOtp} disabled={loading} style={{width:"100%",background:"#0D1F3C",color:"white",border:"none",borderRadius:8,padding:11,fontSize:13,fontWeight:500,cursor:"pointer",opacity:loading?0.7:1}}>
-              {loading?"Please wait…":step==="email"?"Email me a code →":"Verify code →"}
+              {loading?"One moment…":step==="email"?"Email me a code →":"Verify code →"}
             </button>
             {step==="otp"&&<button onClick={()=>{setStep("email");setOtp("");}} style={{width:"100%",background:"none",border:"none",color:"#64748b",fontSize:12,marginTop:10,cursor:"pointer"}}>← Use a different email</button>}
             {step==="email"&&(
