@@ -7,6 +7,7 @@ const STATUS = {
   active:           { label: "Approved",      bg: "#F0FDF4", color: "#166534", border: "#bbf7d0" },
   pending_approval: { label: "Pending review",bg: "#FFF7ED", color: "#c2410c", border: "#fed7aa" },
   rejected:         { label: "Needs changes", bg: "#FFF1F2", color: "#be123c", border: "#fecdd3" },
+  inactive:         { label: "Not offered",   bg: "#F1F5F9", color: "#475569", border: "#e2e8f0" },
 };
 const styles = `
   @media (max-width: 768px) {
@@ -20,6 +21,62 @@ const styles = `
 `;
 const slugify = (s) =>
   (s || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+// Same list the CRM uses on Add Contact. Free-typed country names were arriving
+// as "india", "INDIA", "Bharat" and similar, which then broke geocoding and
+// territory assignment downstream — so both ends now pick from one vocabulary.
+const COUNTRIES = [
+  "Afghanistan","Albania","Algeria","Andorra","Angola","Argentina","Armenia","Australia",
+  "Austria","Azerbaijan","Bahrain","Bangladesh","Belarus","Belgium","Bolivia","Bosnia and Herzegovina",
+  "Brazil","Bulgaria","Cambodia","Cameroon","Canada","Chile","China","Colombia","Costa Rica",
+  "Croatia","Cuba","Cyprus","Czechia","Denmark","Dominican Republic","Ecuador","Egypt",
+  "El Salvador","Estonia","Ethiopia","Finland","France","Georgia","Germany","Ghana","Greece",
+  "Guatemala","Honduras","Hungary","India","Indonesia","Iran","Iraq","Ireland","Israel",
+  "Italy","Jamaica","Japan","Jordan","Kazakhstan","Kenya","Kosovo","Kuwait","Latvia",
+  "Lebanon","Libya","Lithuania","Luxembourg","Malaysia","Malta","Mexico","Moldova","Morocco",
+  "Myanmar","Nepal","Netherlands","New Zealand","Nigeria","North Macedonia","Norway","Oman",
+  "Pakistan","Panama","Paraguay","Peru","Philippines","Poland","Portugal","Qatar","Romania",
+  "Russia","Saudi Arabia","Senegal","Serbia","Singapore","Slovakia","Slovenia","South Africa",
+  "South Korea","Spain","Sri Lanka","Sweden","Switzerland","Syria","Taiwan","Tanzania",
+  "Thailand","Tunisia","Turkey","UAE","Uganda","Ukraine","United Kingdom","United States",
+  "Uruguay","Uzbekistan","Venezuela","Vietnam","Yemen","Zimbabwe"
+];
+
+// Type-ahead rather than a 115-option select: on a phone at a trade show,
+// scrolling a native picker to "United Kingdom" is genuinely slow.
+function CountrySelect({ value, onChange, style }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const matches = COUNTRIES.filter(c => c.toLowerCase().includes(search.toLowerCase())).slice(0, 8);
+  return (
+    <div style={{ position: "relative" }}>
+      <input
+        style={style}
+        value={open ? search : value}
+        onChange={e => { setSearch(e.target.value); setOpen(true); }}
+        onFocus={() => { setSearch(""); setOpen(true); }}
+        onBlur={() => setTimeout(() => setOpen(false), 180)}
+        placeholder="Start typing…"
+        autoComplete="off"
+      />
+      {value && !open && (
+        <span style={{ position: "absolute", right: 11, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: "#0EA5A0", fontWeight: 600 }}>✓</span>
+      )}
+      {open && (
+        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, background: "white", border: "1px solid #e2e8f0", borderRadius: 10, boxShadow: "0 10px 28px rgba(13,31,60,.12)", zIndex: 30, maxHeight: 220, overflowY: "auto" }}>
+          {matches.length === 0
+            ? <div style={{ padding: "10px 13px", fontSize: 12.5, color: "#94a3b8" }}>No match — check the spelling</div>
+            : matches.map(c => (
+                <div key={c} onMouseDown={() => { onChange(c); setSearch(""); setOpen(false); }}
+                  style={{ padding: "9px 13px", cursor: "pointer", fontSize: 13, color: "#0D1F3C", background: c === value ? "#EEF4FF" : "white", fontWeight: c === value ? 600 : 400 }}>
+                  {c}
+                </div>
+              ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Draft autosave ────────────────────────────────────────────────────────────
 // Keeps a half-finished "Add a product" form on the device so nothing is lost to
@@ -342,6 +399,207 @@ function CompanyDocs({ supplier, email, docs, onChanged }) {
     </div>
   );
 }
+// ── PRODUCT DRAWER ─────────────────────────────────────────────────────────────
+// Everything a supplier can change about a product they already listed. Their
+// commercial terms and their paperwork — not the catalogue entry itself, which
+// other suppliers may also be listed against and which goes back through
+// Approvals if it changes.
+const DOC_SLOTS = [
+  { type: "coa",  title: "Certificate of Analysis", hint: "Buyers ask for this first" },
+  { type: "msds", title: "Safety Data Sheet",       hint: "Required for shipping" },
+  { type: "spec", title: "Spec sheet",              hint: "Assay, particle size, origin" },
+];
+
+function ProductDrawer({ sp, supplier, email, onClose, onSaved }) {
+  const [f, setF] = useState({
+    price: sp.price_usd ?? "", lead: sp.lead_time_days ?? "",
+    moq: sp.min_order_qty ?? "", unit: sp.unit || "kg",
+  });
+  const [docs, setDocs] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [busyDoc, setBusyDoc] = useState(null);
+  const [err, setErr] = useState("");
+
+  useEffect(() => { loadDocs(); /* eslint-disable-next-line */ }, [sp.id]);
+
+  async function loadDocs() {
+    const { data } = await supabase.from("supplier_product_documents")
+      .select("*").eq("supplier_product_id", sp.id).order("created_at", { ascending: false });
+    setDocs(data || []);
+  }
+  const docFor = t => docs.find(d => d.doc_type === t);
+
+  async function saveTerms() {
+    setSaving(true); setErr("");
+    const patch = {
+      price_usd: f.price === "" ? null : Number(f.price),
+      lead_time_days: f.lead === "" ? null : Number(f.lead),
+      min_order_qty: f.moq === "" ? null : Number(f.moq),
+      unit: f.unit,
+    };
+    const { error } = await supabase.from("supplier_products").update(patch).eq("id", sp.id);
+    setSaving(false);
+    if (error) { setErr("Could not save: " + error.message); return; }
+    onSaved();
+    onClose();
+  }
+
+  // Uploading a document never sends the product back for review — a supplier
+  // replacing an expired CoA shouldn't have their listing go dark while waiting.
+  async function uploadDoc(file, docType, title) {
+    if (!file) return;
+    setBusyDoc(docType); setErr("");
+    try {
+      const path = `products/${supplier.id}/${sp.id}/${Date.now()}-${file.name}`;
+      const up = await supabase.storage.from("supplier-docs").upload(path, file);
+      if (up.error) throw up.error;
+      const { data: pub } = supabase.storage.from("supplier-docs").getPublicUrl(path);
+
+      const existing = docFor(docType);
+      if (existing) {
+        const { error } = await supabase.from("supplier_product_documents")
+          .update({ file_url: pub.publicUrl, file_name: file.name, uploaded_by: email, label: title })
+          .eq("id", existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("supplier_product_documents").insert({
+          supplier_product_id: sp.id, doc_type: docType, label: title,
+          file_url: pub.publicUrl, file_name: file.name, uploaded_by: email,
+        });
+        if (error) throw error;
+      }
+      await loadDocs();
+      onSaved();
+    } catch (e) {
+      setErr("Upload failed: " + (e.message || e));
+    } finally { setBusyDoc(null); }
+  }
+
+  async function removeDoc(d) {
+    if (!window.confirm(`Remove ${d.file_name || "this document"}?`)) return;
+    setBusyDoc(d.doc_type);
+    await supabase.from("supplier_product_documents").delete().eq("id", d.id);
+    await loadDocs();
+    onSaved();
+    setBusyDoc(null);
+  }
+
+  // Kept, not deleted — you want to know a supplier once offered something.
+  async function setInactive() {
+    if (!window.confirm("Stop offering this product? It disappears from buyers but stays on your record, and you can put it back later.")) return;
+    setSaving(true);
+    const { error } = await supabase.from("supplier_products").update({ status: "inactive" }).eq("id", sp.id);
+    setSaving(false);
+    if (error) { setErr("Could not update: " + error.message); return; }
+    onSaved(); onClose();
+  }
+  async function reactivate() {
+    setSaving(true);
+    const { error } = await supabase.from("supplier_products").update({ status: "active" }).eq("id", sp.id);
+    setSaving(false);
+    if (error) { setErr("Could not update: " + error.message); return; }
+    onSaved(); onClose();
+  }
+
+  const overlay = { position: "fixed", inset: 0, background: "rgba(13,31,60,0.45)", zIndex: 200, display: "flex", justifyContent: "flex-end" };
+  const panel = { width: "min(440px, 100vw)", height: "100vh", background: "white", display: "flex", flexDirection: "column", boxShadow: "-8px 0 32px rgba(13,31,60,0.18)" };
+  const secLbl = { fontSize: 11, fontWeight: 600, letterSpacing: ".05em", textTransform: "uppercase", color: "#1877F2", margin: "20px 0 12px", paddingTop: 14, borderTop: "1px solid #f1f5f9" };
+  const slot = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, borderRadius: 10, padding: "11px 13px", marginBottom: 9, background: "#fbfcfe" };
+  const mini = { border: "1px solid #e2e8f0", borderRadius: 7, padding: "5px 10px", fontSize: 11, color: "#64748b", cursor: "pointer", background: "white", fontFamily: "inherit" };
+
+  return (
+    <div style={overlay} onClick={onClose}>
+      <div style={panel} onClick={e => e.stopPropagation()}>
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid #f1f5f9" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "#0D1F3C" }}>{sp.products?.name || "Product"}</div>
+              <div style={{ fontSize: 12, color: "#64748b", marginTop: 3 }}>
+                {[sp.products?.product_categories?.name, sp.products?.cas_number ? `CAS ${sp.products.cas_number}` : null].filter(Boolean).join(" · ") || "—"}
+              </div>
+            </div>
+            <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, color: "#94a3b8", cursor: "pointer", lineHeight: 1 }}>×</button>
+          </div>
+          <div style={{ marginTop: 10 }}><Chip status={sp.status} /></div>
+        </div>
+
+        <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
+          {sp.status === "rejected" && sp.rejection_reason && (
+            <div style={{ background: "#FFF1F2", border: "1px solid #fecdd3", color: "#9f1239", borderRadius: 9, padding: "11px 13px", fontSize: 12.5, marginBottom: 14, lineHeight: 1.55 }}>
+              <b>What needs changing</b><br />{sp.rejection_reason}
+            </div>
+          )}
+          {sp.status === "inactive" && (
+            <div style={{ background: "#f1f5f9", border: "1px solid #e2e8f0", color: "#475569", borderRadius: 9, padding: "11px 13px", fontSize: 12.5, marginBottom: 14 }}>
+              You've stopped offering this. Buyers can't see it.
+            </div>
+          )}
+
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: ".05em", textTransform: "uppercase", color: "#1877F2", marginBottom: 12 }}>Your commercial terms</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div><label style={labelStyle}>Price (USD)</label>
+              <input style={inputStyle} value={f.price} onChange={e => setF(p => ({ ...p, price: e.target.value }))} placeholder="28.00" inputMode="decimal" /></div>
+            <div><label style={labelStyle}>Unit</label>
+              <select style={inputStyle} value={f.unit} onChange={e => setF(p => ({ ...p, unit: e.target.value }))}>
+                <option>kg</option><option>g</option><option>L</option><option>ton</option>
+              </select></div>
+            <div><label style={labelStyle}>Lead time (days)</label>
+              <input style={inputStyle} value={f.lead} onChange={e => setF(p => ({ ...p, lead: e.target.value }))} placeholder="21" inputMode="numeric" /></div>
+            <div><label style={labelStyle}>Min order qty</label>
+              <input style={inputStyle} value={f.moq} onChange={e => setF(p => ({ ...p, moq: e.target.value }))} placeholder="100" inputMode="decimal" /></div>
+          </div>
+
+          <div style={secLbl}>Documents</div>
+          {DOC_SLOTS.map(s => {
+            const d = docFor(s.type);
+            const busy = busyDoc === s.type;
+            return (
+              <div key={s.type} style={{ ...slot, border: d ? "1px solid #e2e8f0" : "1px dashed #e2e8f0" }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#0D1F3C" }}>{s.title}</div>
+                  <div style={{ fontSize: 11, color: d ? "#166534" : "#94a3b8", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {busy ? "Uploading…" : d ? d.file_name : s.hint}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                  {d && <button style={mini} onClick={() => window.open(d.file_url, "_blank")}>View</button>}
+                  <label style={{ ...mini, display: "inline-block" }}>
+                    {d ? "Replace" : "Choose file"}
+                    <input type="file" accept=".pdf,.png,.jpg,.jpeg" style={{ display: "none" }} disabled={busy}
+                      onChange={e => { uploadDoc(e.target.files?.[0], s.type, s.title); e.target.value = ""; }} />
+                  </label>
+                  {d && <button style={{ ...mini, color: "#be123c" }} onClick={() => removeDoc(d)}>✕</button>}
+                </div>
+              </div>
+            );
+          })}
+
+          <div style={{ background: "#EEF4FF", border: "1px solid #bfd6f6", borderRadius: 9, padding: "10px 12px", marginTop: 16, fontSize: 11.5, color: "#1e40af", lineHeight: 1.55 }}>
+            Prices, lead times and documents update straight away. To change the product name or specification, add it again as a new product — the catalogue entry is shared with other suppliers.
+          </div>
+
+          {err && <div style={{ color: "#be123c", fontSize: 12, marginTop: 12 }}>{err}</div>}
+        </div>
+
+        <div style={{ padding: "14px 20px", borderTop: "1px solid #f1f5f9" }}>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={saveTerms} disabled={saving}
+              style={{ flex: 1, background: "#0D1F3C", color: "white", border: "none", borderRadius: 8, padding: "11px 0", fontSize: 13, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? .7 : 1 }}>
+              {saving ? "Saving…" : "Save changes"}
+            </button>
+            <button onClick={onClose} style={{ border: "1px solid #d0d7e5", background: "white", borderRadius: 8, padding: "11px 16px", fontSize: 13, color: "#64748b", cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+          </div>
+          <div style={{ textAlign: "center", marginTop: 10 }}>
+            {sp.status === "inactive"
+              ? <button onClick={reactivate} style={{ background: "none", border: "none", color: "#1877F2", fontSize: 11.5, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Offer this product again</button>
+              : <button onClick={setInactive} style={{ background: "none", border: "none", color: "#be123c", fontSize: 11.5, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Stop offering this product</button>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── APPLY TO SUPPLY (first-time onboarding) ─────────────────────────────────────
 function ApplyForm({ email, onApplied, onLogout }) {
   const [f, setF] = useState({ company: "", contact_name: "", country: "", phone: "", website: "", description: "", doc_type: "gmp" });
@@ -432,7 +690,8 @@ function ApplyForm({ email, onApplied, onLogout }) {
             <div style={{ marginBottom: 14 }}><label style={labelStyle}>Contact person</label><input style={inputStyle} value={f.contact_name} onChange={set("contact_name")} placeholder="Your name" /></div>
           </div>
           <div className="sup-row3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
-            <div style={{ marginBottom: 14 }}><label style={labelStyle}>Country</label><input style={inputStyle} value={f.country} onChange={set("country")} placeholder="e.g. India" /></div>
+            <div style={{ marginBottom: 14 }}><label style={labelStyle}>Country</label>
+              <CountrySelect value={f.country} onChange={v => setF(p => ({ ...p, country: v }))} style={inputStyle} /></div>
             <div style={{ marginBottom: 14 }}><label style={labelStyle}>Phone</label><input style={inputStyle} value={f.phone} onChange={set("phone")} placeholder="optional" /></div>
             <div style={{ marginBottom: 14 }}><label style={labelStyle}>Website</label><input style={inputStyle} value={f.website} onChange={set("website")} placeholder="optional" /></div>
           </div>
@@ -473,6 +732,7 @@ export default function Supplier() {
   const [loading, setLoading]   = useState(true);
   const [showLogin, setShowLogin] = useState(false);
   const [tab, setTab]           = useState("list"); // list | add | excel | cat
+  const [openProduct, setOpenProduct] = useState(null);   // row clicked in My list
   // Which account we've already loaded data for. Supabase fires auth events on
   // things that are NOT a login — a token refresh, or coming back to the tab —
   // and re-running init() on those wiped whatever the supplier had typed,
@@ -512,7 +772,7 @@ export default function Supplier() {
   }
   async function loadProducts(supplierId) {
     const { data } = await supabase.from("supplier_products")
-      .select("*, products(name, unit, product_categories(name)), supplier_product_documents(doc_type)")
+      .select("*, products(name, unit, cas_number, product_categories(name)), supplier_product_documents(doc_type)")
       .eq("supplier_id", supplierId).order("created_at", { ascending: false });
     setProducts(data || []);
   }
@@ -555,6 +815,9 @@ export default function Supplier() {
   const approved = products.filter((p) => p.status === "active").length;
   const pending  = products.filter((p) => p.status === "pending_approval").length;
   const rejected = products.filter((p) => p.status === "rejected").length;
+  // Withdrawn products stay on the record but shouldn't pad the headline count —
+  // otherwise the four tiles don't add up and it looks like something is missing.
+  const listed   = products.filter((p) => p.status !== "inactive").length;
   const TABS = [["list", "My list"], ["add", "Add a product"], ["excel", "Upload Excel"], ["cat", "Add from catalogue"]];
   const useCatalogueProduct = async (p) => {
     try {
@@ -598,7 +861,7 @@ export default function Supplier() {
         )}
         {/* Stats */}
         <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 24 }}>
-          {[["Approved", approved, "#22c55e"], ["Pending review", pending, "#f59e0b"], ["Needs changes", rejected, "#be123c"], ["Total products", products.length, "#1877F2"]].map(([label, val, color]) => (
+          {[["Approved", approved, "#22c55e"], ["Pending review", pending, "#f59e0b"], ["Needs changes", rejected, "#be123c"], ["Total products", listed, "#1877F2"]].map(([label, val, color]) => (
             <div key={label} style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 10, padding: "14px 16px" }}>
               <div style={{ fontSize: 10, color: "#94a3b8", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", marginBottom: 4 }}>{label}</div>
               <div style={{ fontSize: 24, fontWeight: 700, color }}>{val}</div>
@@ -646,7 +909,7 @@ export default function Supplier() {
                 <div className="sup-table-wrap" style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 12, overflow: "hidden" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead><tr style={{ background: "#f8fafc" }}>
-                      {["Product", "Category", "Your price", "Lead", "MOQ", "Docs", "Status"].map((h) => (
+                      {["Product", "Category", "Your price", "Lead", "MOQ", "Docs", "Status", ""].map((h) => (
                         <th key={h} style={{ textAlign: "left", fontSize: 10, color: "#94a3b8", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", padding: "11px 12px", borderBottom: "1px solid #f1f5f9" }}>{h}</th>
                       ))}
                     </tr></thead>
@@ -654,7 +917,10 @@ export default function Supplier() {
                       {products.map((sp) => {
                         const docTypes = (sp.supplier_product_documents || []).map((d) => d.doc_type);
                         return (
-                          <tr key={sp.id} style={{ borderBottom: "1px solid #f8fafc" }}>
+                          <tr key={sp.id} onClick={() => setOpenProduct(sp)}
+                            style={{ borderBottom: "1px solid #f8fafc", cursor: "pointer", opacity: sp.status === "inactive" ? .55 : 1 }}
+                            onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"}
+                            onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                             <td style={{ padding: "11px 12px", fontSize: 13, fontWeight: 600, color: "#0D1F3C" }}>{sp.products?.name || "—"}</td>
                             <td style={{ padding: "11px 12px", fontSize: 13, color: "#64748b" }}>{sp.products?.product_categories?.name || "—"}</td>
                             <td style={{ padding: "11px 12px", fontSize: 13, color: "#64748b" }}>{sp.price_usd != null ? `$${sp.price_usd}/${sp.unit || "kg"}` : "—"}</td>
@@ -665,6 +931,7 @@ export default function Supplier() {
                               <DocPill have={docTypes.includes("msds")}>MSDS</DocPill>
                             </td>
                             <td style={{ padding: "11px 12px" }}><Chip status={sp.status} /></td>
+                            <td style={{ padding: "11px 12px", fontSize: 11.5, fontWeight: 600, color: "#1877F2", whiteSpace: "nowrap" }}>Edit →</td>
                           </tr>
                         );
                       })}
@@ -686,6 +953,15 @@ export default function Supplier() {
           </div>
         </div>
       </div>
+      {openProduct && (
+        <ProductDrawer
+          sp={openProduct}
+          supplier={supplier}
+          email={session.user.email}
+          onClose={() => setOpenProduct(null)}
+          onSaved={() => loadProducts(supplier.id)}
+        />
+      )}
     </div>
   );
 }
