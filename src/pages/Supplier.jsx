@@ -20,6 +20,31 @@ const styles = `
 `;
 const slugify = (s) =>
   (s || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+// ── Draft autosave ────────────────────────────────────────────────────────────
+// Keeps a half-finished "Add a product" form on the device so nothing is lost to
+// a refresh, a crash, or a stray navigation. Wrapped in try/catch because
+// private-browsing modes can throw on localStorage access.
+const DRAFT_KEY = "ingredientz.supplier.productDraft";
+const BLANK_PRODUCT = { name: "", category_id: "", cas: "", hsn: "", unit: "kg", short: "", specs: "", price: "", lead: "", moq: "" };
+function readDraft() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    // ignore anything older than 7 days, and anything genuinely empty
+    if (!d || !d.savedAt || Date.now() - d.savedAt > 7 * 86400000) return null;
+    const hasContent = Object.keys(BLANK_PRODUCT).some((k) => (d.values?.[k] || "") !== (BLANK_PRODUCT[k] || ""));
+    return hasContent ? d.values : null;
+  } catch (e) { return null; }
+}
+function writeDraft(values) {
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ savedAt: Date.now(), values })); } catch (e) {}
+}
+function clearDraft() {
+  try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
+}
+
 // ── reusable bits ────────────────────────────────────────────────────────────
 function Chip({ status }) {
   const s = STATUS[status] || STATUS.pending_approval;
@@ -46,11 +71,30 @@ const sectionStyle = { fontSize: 11, fontWeight: 700, textTransform: "uppercase"
 const slotStyle = { display: "flex", alignItems: "center", justifyContent: "space-between", border: "1px dashed #e2e8f0", borderRadius: 10, padding: "11px 13px", marginBottom: 10, background: "#fbfcfe" };
 // ── ADD A PRODUCT FORM ─────────────────────────────────────────────────────────
 function AddProduct({ supplier, email, categories, onAdded, onUseCatalogue }) {
-  const [f, setF] = useState({ name: "", category_id: "", cas: "", hsn: "", unit: "kg", short: "", specs: "", price: "", lead: "", moq: "" });
+  // start from a saved draft if there is one
+  const [f, setF] = useState(() => ({ ...BLANK_PRODUCT, ...(readDraft() || {}) }));
+  const [restored, setRestored] = useState(() => !!readDraft());
+  const [savedAt, setSavedAt] = useState(null);
   const [sug, setSug] = useState([]);
   const [saving, setSaving] = useState(false);
   const coaRef = useRef(null), msdsRef = useRef(null);
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
+
+  // persist the draft as they type (debounced so we're not writing on every keystroke)
+  useEffect(() => {
+    const empty = Object.keys(BLANK_PRODUCT).every((k) => (f[k] || "") === (BLANK_PRODUCT[k] || ""));
+    if (empty) return;
+    const t = setTimeout(() => { writeDraft(f); setSavedAt(new Date()); }, 600);
+    return () => clearTimeout(t);
+  }, [f]);
+
+  function discardDraft() {
+    clearDraft();
+    setF({ ...BLANK_PRODUCT });
+    setRestored(false);
+    setSavedAt(null);
+  }
+
   // live catalogue suggestions
   useEffect(() => {
     const q = f.name.trim();
@@ -104,10 +148,11 @@ function AddProduct({ supplier, email, categories, onAdded, onUseCatalogue }) {
       // if linking fails, remove the product we just created so nothing is left half-saved
       if (e2) { await supabase.from("products").delete().eq("id", prod.id); throw e2; }
       // 3) upload any documents (best effort — a doc hiccup won't undo the submission)
+      let docFailed = false;
       try {
         if (coaRef.current?.files?.[0])  await uploadDoc(coaRef.current.files[0], "coa", sp.id);
         if (msdsRef.current?.files?.[0]) await uploadDoc(msdsRef.current.files[0], "msds", sp.id);
-      } catch (docErr) { console.error("Document upload failed:", docErr); }
+      } catch (docErr) { docFailed = true; console.error("Document upload failed:", docErr); }
       // 4) notify the Ingredientz team that something is waiting for approval (best effort)
       try {
         await supabase.functions.invoke("send-email", {
@@ -123,7 +168,11 @@ function AddProduct({ supplier, email, categories, onAdded, onUseCatalogue }) {
           },
         });
       } catch (notifyErr) { console.error("Admin notify failed:", notifyErr); }
-      alert("Submitted for approval. We'll email you when it's reviewed.");
+      // the product is safely saved — the draft has done its job
+      clearDraft();
+      alert(docFailed
+        ? "Product submitted for approval, but the document upload didn't go through. Open the product to attach it again."
+        : "Submitted for approval. We'll email you when it's reviewed.");
       onAdded();
     } catch (err) {
       alert("Something went wrong: " + err.message);
@@ -133,6 +182,12 @@ function AddProduct({ supplier, email, categories, onAdded, onUseCatalogue }) {
   }
   return (
     <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 12, padding: 18 }}>
+      {restored && (
+        <div style={{ background: "#EEF4FF", border: "1px solid #bfd6f6", color: "#1e40af", borderRadius: 9, padding: "10px 13px", fontSize: 12.5, marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <span>We brought back what you'd typed last time.</span>
+          <button onClick={discardDraft} style={{ background: "none", border: "1px solid #bfd6f6", color: "#1e40af", borderRadius: 6, padding: "4px 10px", fontSize: 11.5, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>Start fresh</button>
+        </div>
+      )}
       <div className="sup-row2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         <div style={{ marginBottom: 14, position: "relative" }}>
           <label style={labelStyle}>Product name</label>
@@ -184,12 +239,16 @@ function AddProduct({ supplier, email, categories, onAdded, onUseCatalogue }) {
         <div><b style={{ display: "block", fontSize: 13 }}>Safety Data Sheet (MSDS)</b><span style={{ color: "#94a3b8", fontSize: 11.5 }}>PDF · recommended</span></div>
         <input type="file" ref={msdsRef} accept=".pdf,.png,.jpg,.jpeg" style={{ fontSize: 12 }} />
       </div>
-      <div style={{ marginTop: 18 }}>
+      <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 6 }}>
+        Files aren't held in the draft — pick them again if you come back to a restored form.
+      </div>
+      <div style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         <button onClick={submit} disabled={saving}
           style={{ background: "#0D1F3C", color: "white", border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.7 : 1 }}>
           {saving ? "Submitting…" : "Submit for approval"}
         </button>
-        <span style={{ color: "#94a3b8", marginLeft: 10, fontSize: 12 }}>We'll review and email you.</span>
+        <span style={{ color: "#94a3b8", fontSize: 12 }}>We'll review and email you.</span>
+        {savedAt && <span style={{ color: "#94a3b8", fontSize: 11.5, marginLeft: "auto" }}>Draft saved {savedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
       </div>
     </div>
   );
@@ -250,10 +309,11 @@ function CompanyDocs({ supplier, email, docs, onChanged }) {
       const { error } = await supabase.storage.from("supplier-docs").upload(path, file);
       if (error) throw error;
       const { data } = supabase.storage.from("supplier-docs").getPublicUrl(path);
-      await supabase.from("supplier_documents").insert({
+      const { error: rowErr } = await supabase.from("supplier_documents").insert({
         supplier_id: supplier.id, doc_type: docType, label,
         file_url: data.publicUrl, file_name: file.name, uploaded_by: email,
       });
+      if (rowErr) throw rowErr;
       onChanged();
     } catch (err) { alert("Something went wrong: " + err.message); }
     finally { setBusy(false); }
@@ -266,7 +326,7 @@ function CompanyDocs({ supplier, email, docs, onChanged }) {
         <div><b style={{ display: "block", fontSize: 13 }}>{title}</b>
           <span style={{ color: d ? "#166534" : "#94a3b8", fontSize: 11.5 }}>{d ? `Uploaded · ${d.file_name}` : hint}</span></div>
         <label style={{ background: "none", color: "#0D1F3C", border: "1px solid #e2e8f0", borderRadius: 7, padding: "7px 13px", fontSize: 12, cursor: "pointer" }}>
-          {d ? "Replace" : "Choose file"}
+          {busy ? "Uploading…" : d ? "Replace" : "Choose file"}
           <input type="file" accept=".pdf,.png,.jpg,.jpeg" style={{ display: "none" }} disabled={busy}
             onChange={(e) => upload(e.target.files?.[0], type, title)} />
         </label>
@@ -294,10 +354,14 @@ function ApplyForm({ email, onApplied, onLogout }) {
     setSaving(true);
     try {
       // 1) create the supplier profile as Pending
+      //    auth_user_id ties this company to the logged-in account, so document
+      //    uploads and future edits can be checked against it.
+      const { data: { user } } = await supabase.auth.getUser();
       const { data: sup, error: e1 } = await supabase.from("suppliers").insert({
         company: f.company.trim(),
         slug: `${slugify(f.company)}-${Date.now()}`,
         email,
+        auth_user_id: user?.id || null,
         status: "pending",
         contact_name: f.contact_name || null,
         country: f.country || null,
@@ -317,6 +381,8 @@ function ApplyForm({ email, onApplied, onLogout }) {
           label: f.doc_type === "gmp" ? "GMP certificate" : "Manufacturing licence",
           file_url: pub.publicUrl, file_name: file.name, uploaded_by: email,
         });
+      } else {
+        console.error("Credential upload failed:", upErr);
       }
       // 3) notify the Ingredientz team (best effort)
       try {
@@ -407,25 +473,42 @@ export default function Supplier() {
   const [loading, setLoading]   = useState(true);
   const [showLogin, setShowLogin] = useState(false);
   const [tab, setTab]           = useState("list"); // list | add | excel | cat
+  // Which account we've already loaded data for. Supabase fires auth events on
+  // things that are NOT a login — a token refresh, or coming back to the tab —
+  // and re-running init() on those wiped whatever the supplier had typed,
+  // because init() flips `loading` and unmounts the whole dashboard.
+  const loadedFor = useRef(null);
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (session?.user?.email) init(session.user.email); else setLoading(false);
+      const em = session?.user?.email || null;
+      if (em) { loadedFor.current = em; init(em); }
+      else setLoading(false);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if (session?.user?.email) init(session.user.email);
+      const em = session?.user?.email || null;
+      // Same account as we already loaded → nothing to do. This is the guard
+      // that keeps a half-typed form alive across tab switches.
+      if (em === loadedFor.current) return;
+      loadedFor.current = em;
+      if (em) {
+        init(em);
+      } else {
+        setSupplier(undefined); setProducts([]); setCompanyDocs([]); setLoading(false);
+      }
     });
     return () => subscription.unsubscribe();
   }, []);
-  async function init(email) {
-    setLoading(true);
+  // `silent` refreshes data without blanking the screen, so open forms survive.
+  async function init(email, { silent = false } = {}) {
+    if (!silent) setLoading(true);
     const { data: sup } = await supabase.from("suppliers").select("*").ilike("email", email).maybeSingle();
     setSupplier(sup || null);
     if (sup) {
       await Promise.all([loadProducts(sup.id), loadCompanyDocs(sup.id), loadCategories()]);
     }
-    setLoading(false);
+    if (!silent) setLoading(false);
   }
   async function loadProducts(supplierId) {
     const { data } = await supabase.from("supplier_products")
@@ -442,7 +525,11 @@ export default function Supplier() {
     setCategories(data || []);
   }
   function reload() { if (supplier) { loadProducts(supplier.id); loadCompanyDocs(supplier.id); } setTab("list"); }
-  async function logout() { await supabase.auth.signOut(); setSession(null); setSupplier(undefined); setProducts([]); }
+  async function logout() {
+    loadedFor.current = null;
+    await supabase.auth.signOut();
+    setSession(null); setSupplier(undefined); setProducts([]); setCompanyDocs([]);
+  }
   // ── not logged in ──
   if (!session) return (
     <div style={{ minHeight: "70vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
@@ -475,6 +562,7 @@ export default function Supplier() {
         supplier_id: supplier.id, product_id: p.id, submitted_by_supplier: true, status: "active", unit: p.unit || "kg",
       });
       if (error) throw error;
+      clearDraft();
       alert(`Added "${p.name}" to your products.`); reload();
     } catch (err) { alert("Something went wrong: " + err.message); }
   };
