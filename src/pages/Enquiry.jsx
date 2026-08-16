@@ -8,12 +8,29 @@ export default function Enquiry({ lang, cart, onRemoveFromCart, onClearCart }) {
   const [form, setForm] = useState({ company:"", contact:"", email:"", notes:"" });
   const [loc, setLoc] = useState({ iso2:null, name:"", dial:"", national:"" });
   const [customProduct, setCustomProduct] = useState("");
+  const [customQty, setCustomQty] = useState("");
+  const [customTBC, setCustomTBC] = useState(false);
   const [quantities, setQuantities] = useState({});
+  const [qtyTBC, setQtyTBC] = useState({});      // product id -> "quantity to confirm"
+  const [flagQty, setFlagQty] = useState(false); // highlight rows after a failed submit
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
 
   function setF(k,v) { setForm(f => ({...f,[k]:v})); }
+
+  // A product is answered if it has a positive quantity OR is explicitly marked to confirm.
+  function qtyAnswered(id) {
+    return qtyTBC[id] === true || Number(quantities[id]) > 0;
+  }
+
+  function toggleTBC(id) {
+    setQtyTBC(t => {
+      const next = { ...t, [id]: !t[id] };
+      if (next[id]) setQuantities(q => ({ ...q, [id]: "" })); // clear the number when marking TBC
+      return next;
+    });
+  }
 
   async function submit(e) {
     e.preventDefault();
@@ -21,12 +38,41 @@ export default function Enquiry({ lang, cart, onRemoveFromCart, onClearCart }) {
     if (!loc.iso2) { setError("Please select your country"); return; }
     if (!loc.national.trim()) { setError("Phone number is required"); return; }
     if (cart.length === 0 && !customProduct.trim()) { setError("Please add at least one product"); return; }
-    setSubmitting(true); setError("");
+
+    // Every product needs a quantity, or an explicit "to confirm".
+    const missing = cart.filter(p => !qtyAnswered(p.id));
+    if (missing.length > 0) {
+      setFlagQty(true);
+      setError(
+        missing.length === 1
+          ? `Add a quantity for ${missing[0].name}, or mark it "To confirm".`
+          : `Add a quantity for ${missing.length} products, or mark them "To confirm".`
+      );
+      return;
+    }
+    if (customProduct.trim() && !customTBC && !(Number(customQty) > 0)) {
+      setFlagQty(true);
+      setError(`Add a quantity for "${customProduct.trim()}", or mark it "To confirm".`);
+      return;
+    }
+
+    setSubmitting(true); setError(""); setFlagQty(false);
 
     try {
       const products = [
-        ...cart.map(p => ({ name: p.name, qty: quantities[p.id] || "", unit: p.unit || "kg", product_id: p.id })),
-        ...(customProduct.trim() ? [{ name: customProduct.trim(), qty: "", unit: "kg" }] : [])
+        ...cart.map(p => ({
+          name: p.name,
+          qty: qtyTBC[p.id] ? "" : (quantities[p.id] || ""),
+          unit: p.unit || "kg",
+          qty_status: qtyTBC[p.id] ? "to_confirm" : "specified",
+          product_id: p.id
+        })),
+        ...(customProduct.trim() ? [{
+          name: customProduct.trim(),
+          qty: customTBC ? "" : (customQty || ""),
+          unit: "kg",
+          qty_status: customTBC ? "to_confirm" : "specified"
+        }] : [])
       ];
 
       // Create enquiry in CRM
@@ -137,19 +183,36 @@ export default function Enquiry({ lang, cart, onRemoveFromCart, onClearCart }) {
                 </div>
               )}
 
-              {cart.map(p => (
-                <div key={p.id} style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 10, padding: "12px 14px", marginBottom: 8, display: "flex", gap: 10, alignItems: "center" }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "#0f172a" }}>{p.name}</div>
-                    <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>{p.product_categories?.name}</div>
+              {cart.map(p => {
+                const tbc = qtyTBC[p.id] === true;
+                const needsQty = flagQty && !qtyAnswered(p.id);
+                return (
+                  <div key={p.id} style={{ background: "white", border: `1px solid ${needsQty ? "#ef4444" : "#e2e8f0"}`, borderRadius: 10, padding: "12px 14px", marginBottom: 8 }}>
+                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "#0f172a" }}>{p.name}</div>
+                        <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>{p.product_categories?.name}</div>
+                      </div>
+                      <input type="number" min="0" disabled={tbc}
+                        placeholder={tbc ? "To confirm" : `Qty (${p.unit||"kg"}) *`}
+                        value={tbc ? "" : (quantities[p.id]||"")}
+                        onChange={e => setQuantities(q => ({...q,[p.id]:e.target.value}))}
+                        style={{ width: 96, border: `1px solid ${needsQty ? "#ef4444" : "#e2e8f0"}`, borderRadius: 6, padding: "5px 8px", fontSize: 11, outline: "none", background: tbc ? "#f8fafc" : "white", color: tbc ? "#94a3b8" : "#0f172a" }}/>
+                      <button type="button" onClick={() => onRemoveFromCart(p.id)}
+                        style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 16, lineHeight: 1 }}>×</button>
+                    </div>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, fontSize: 10.5, color: "#64748b", cursor: "pointer" }}>
+                      <input type="checkbox" checked={tbc} onChange={() => toggleTBC(p.id)} style={{ cursor: "pointer", margin: 0 }}/>
+                      I'll confirm this quantity later
+                    </label>
+                    {needsQty && (
+                      <div style={{ fontSize: 10.5, color: "#ef4444", marginTop: 5 }}>
+                        Enter a quantity, or tick the box above.
+                      </div>
+                    )}
                   </div>
-                  <input type="number" placeholder={`Qty (${p.unit||"kg"})`} value={quantities[p.id]||""}
-                    onChange={e => setQuantities(q => ({...q,[p.id]:e.target.value}))}
-                    style={{ width: 90, border: "1px solid #e2e8f0", borderRadius: 6, padding: "5px 8px", fontSize: 11, outline: "none" }}/>
-                  <button type="button" onClick={() => onRemoveFromCart(p.id)}
-                    style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 16, lineHeight: 1 }}>×</button>
-                </div>
-              ))}
+                );
+              })}
 
               {/* Formula tool prompt — for customers sourcing a whole formula */}
               <Link to="/formula" style={{ display:"block", textDecoration:"none", marginBottom: 12 }}>
@@ -167,9 +230,22 @@ export default function Enquiry({ lang, cart, onRemoveFromCart, onClearCart }) {
                 <label style={{ fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: 0.5, display: "block", marginBottom: 5 }}>
                   Can't find your product? Add manually:
                 </label>
-                <input value={customProduct} onChange={e => setCustomProduct(e.target.value)}
-                  placeholder="e.g. Curcumin 95% Extract, 100kg"
-                  style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 8, padding: "9px 12px", fontSize: 12, outline: "none" }}/>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input value={customProduct} onChange={e => setCustomProduct(e.target.value)}
+                    placeholder="e.g. Curcumin 95% Extract"
+                    style={{ flex: 1, border: "1px solid #e2e8f0", borderRadius: 8, padding: "9px 12px", fontSize: 12, outline: "none" }}/>
+                  <input type="number" min="0" disabled={customTBC}
+                    value={customTBC ? "" : customQty}
+                    onChange={e => setCustomQty(e.target.value)}
+                    placeholder={customTBC ? "To confirm" : "Qty (kg)"}
+                    style={{ width: 96, border: "1px solid #e2e8f0", borderRadius: 8, padding: "9px 10px", fontSize: 12, outline: "none", background: customTBC ? "#f8fafc" : "white" }}/>
+                </div>
+                {customProduct.trim() && (
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, fontSize: 10.5, color: "#64748b", cursor: "pointer" }}>
+                    <input type="checkbox" checked={customTBC} onChange={() => { setCustomTBC(v => !v); setCustomQty(""); }} style={{ cursor: "pointer", margin: 0 }}/>
+                    I'll confirm this quantity later
+                  </label>
+                )}
               </div>
 
               {error && <div style={{ fontSize: 12, color: "#ef4444", marginBottom: 10 }}>{error}</div>}
