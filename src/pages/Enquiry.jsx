@@ -2,9 +2,11 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase.js";
 import { sendCustomerAcknowledgment } from "../lib/enquiryEmail.js";
+import CountryPhoneFields from "../components/CountryPhone.jsx";
 
 export default function Enquiry({ lang, cart, onRemoveFromCart, onClearCart }) {
-  const [form, setForm] = useState({ company:"", contact:"", email:"", phone:"", country:"", notes:"" });
+  const [form, setForm] = useState({ company:"", contact:"", email:"", notes:"" });
+  const [loc, setLoc] = useState({ iso2:null, name:"", dial:"", national:"" });
   const [customProduct, setCustomProduct] = useState("");
   const [quantities, setQuantities] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -16,6 +18,8 @@ export default function Enquiry({ lang, cart, onRemoveFromCart, onClearCart }) {
   async function submit(e) {
     e.preventDefault();
     if (!form.email) { setError("Email is required"); return; }
+    if (!loc.iso2) { setError("Please select your country"); return; }
+    if (!loc.national.trim()) { setError("Phone number is required"); return; }
     if (cart.length === 0 && !customProduct.trim()) { setError("Please add at least one product"); return; }
     setSubmitting(true); setError("");
 
@@ -30,8 +34,11 @@ export default function Enquiry({ lang, cart, onRemoveFromCart, onClearCart }) {
         customer_name: form.company || form.email,
         contact_person: form.contact || form.company,
         email: form.email,
-        phone: form.phone,
-        country: form.country,
+        phone: `${loc.dial} ${loc.national}`.trim(),
+        phone_dial: loc.dial,
+        phone_national: loc.national,
+        country: loc.name,
+        country_iso2: loc.iso2,
         stage: "New Enquiry",
         priority: "Medium",
         source: "Website",
@@ -102,13 +109,16 @@ export default function Enquiry({ lang, cart, onRemoveFromCart, onClearCart }) {
             <div>
               <h2 style={{ fontSize: 16, fontWeight: 600, color: "#0D1F3C", marginBottom: 20 }}>Your Details</h2>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
-                {[["Company Name","company","text","Acme Nutrition Ltd"],["Contact Person","contact","text","John Smith"],["Business Email *","email","email","john@acmenutrition.com"],["Phone","phone","tel","+1 234 567 8900"],["Country","country","text","United States"]].map(([label,key,type,ph]) => (
-                  <div key={key} style={{ gridColumn: key === "email" || key === "notes" ? "span 2" : "span 1" }}>
+                {[["Company Name","company","text","Acme Nutrition Ltd"],["Contact Person","contact","text","John Smith"],["Business Email *","email","email","john@acmenutrition.com"]].map(([label,key,type,ph]) => (
+                  <div key={key} style={{ gridColumn: key === "email" ? "span 2" : "span 1" }}>
                     <label style={{ fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: 0.5, display: "block", marginBottom: 5 }}>{label}</label>
                     <input type={type} value={form[key]} onChange={e => setF(key, e.target.value)} placeholder={ph}
                       style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 8, padding: "10px 12px", fontSize: 13, outline: "none" }}/>
                   </div>
                 ))}
+
+                {/* Country + Phone — linked, both required */}
+                <CountryPhoneFields value={loc} onChange={setLoc} />
               </div>
               <div style={{ marginBottom: 14 }}>
                 <label style={{ fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: 0.5, display: "block", marginBottom: 5 }}>Additional Notes</label>
