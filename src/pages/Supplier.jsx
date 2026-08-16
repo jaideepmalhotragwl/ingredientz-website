@@ -355,47 +355,191 @@ function Catalogue({ supplier, onAdded }) {
     </div>
   );
 }
+// ── SUPPLIER QUALIFICATION ─────────────────────────────────────────────────────
+// The document set we need before a supplier is considered qualified. Grouped
+// the way a supplier thinks about their own paperwork rather than the way the
+// database stores it.
+//
+// The star rating derived from this is internal to Ingredientz — suppliers and
+// buyers only ever see "Approved" (we've accepted them) and "Qualified" (the
+// paperwork is complete). Nobody outside sees a number, so nobody games it.
+const QUAL_GROUPS = [
+  {
+    key: "legal", title: "Legal and registration",
+    slots: [
+      { type: "incorporation", title: "Company incorporation certificate", hint: "Proof the company exists" },
+      { type: "food_facility", title: "Food facility registration",        hint: "Where you manufacture" },
+      { type: "fssai_fda",     title: "FSSAI or FDA registration",         hint: "Whichever applies in your market" },
+    ],
+  },
+  {
+    key: "safety", title: "Food safety",
+    slots: [
+      { type: "gmp",   title: "GMP certificate",             hint: "Good Manufacturing Practice" },
+      { type: "haccp", title: "HACCP certificate or report", hint: "Hazard analysis" },
+    ],
+  },
+  {
+    key: "quality", title: "Quality system",
+    slots: [
+      { type: "quality_system", title: "ISO / BRC / FSSC / SQF", hint: "Any one is enough", standards: ["ISO 9001", "ISO 22000", "FSSC 22000", "BRC", "SQF"] },
+    ],
+  },
+  {
+    key: "organic", title: "Organic", organicOnly: true,
+    slots: [
+      { type: "organic_cert", title: "Organic certificate",  hint: "NOP, EU, India Organic…" },
+      { type: "organic_list", title: "Organic product list", hint: "Which of your products are covered" },
+    ],
+  },
+];
+
+// Derived, never stored. A supplier whose GMP lapses should drop a star on its
+// own — a number written into a column would sit there being wrong.
+function qualify(supplier, docs) {
+  const has = t => docs.some(d => d.doc_type === t);
+  const organic = !!supplier?.sells_organic;
+  const tiers = [
+    { star: 1, ok: true },
+    { star: 2, ok: has("incorporation") && has("fssai_fda") },
+    { star: 3, ok: has("food_facility") && has("haccp") },
+    { star: 4, ok: has("quality_system") },
+    { star: 5, ok: has("facility_photo") && (!organic || (has("organic_cert") && has("organic_list"))) },
+  ];
+  let stars = 0;
+  for (const t of tiers) { if (!t.ok) break; stars = t.star; }
+  return { stars, qualified: stars >= 4 };
+}
+
 // ── COMPANY DOCUMENTS ──────────────────────────────────────────────────────────
 function CompanyDocs({ supplier, email, docs, onChanged }) {
-  const [busy, setBusy] = useState(false);
-  async function upload(file, docType, label) {
+  const [busy, setBusy] = useState(null);
+  const [err, setErr] = useState("");
+  const [standard, setStandard] = useState("ISO 9001");
+  const organic = !!supplier.sells_organic;
+
+  async function upload(file, docType, label, allowMany) {
     if (!file) return;
-    setBusy(true);
+    setBusy(docType); setErr("");
     try {
       const path = `company/${supplier.id}/${Date.now()}-${file.name}`;
-      const { error } = await supabase.storage.from("supplier-docs").upload(path, file);
+      const up = await supabase.storage.from("supplier-docs").upload(path, file);
+      if (up.error) throw up.error;
+      const { data: pub } = supabase.storage.from("supplier-docs").getPublicUrl(path);
+      const row = { supplier_id: supplier.id, doc_type: docType, label,
+        file_url: pub.publicUrl, file_name: file.name, uploaded_by: email };
+
+      const existing = !allowMany && docs.find(d => d.doc_type === docType);
+      const { error } = existing
+        ? await supabase.from("supplier_documents").update(row).eq("id", existing.id)
+        : await supabase.from("supplier_documents").insert(row);
       if (error) throw error;
-      const { data } = supabase.storage.from("supplier-docs").getPublicUrl(path);
-      const { error: rowErr } = await supabase.from("supplier_documents").insert({
-        supplier_id: supplier.id, doc_type: docType, label,
-        file_url: data.publicUrl, file_name: file.name, uploaded_by: email,
-      });
-      if (rowErr) throw rowErr;
       onChanged();
-    } catch (err) { alert("Something went wrong: " + err.message); }
-    finally { setBusy(false); }
+    } catch (e) { setErr("Upload failed: " + (e.message || e)); }
+    finally { setBusy(null); }
   }
-  const have = (t) => docs.find((d) => d.doc_type === t);
-  const Slot = ({ type, title, hint }) => {
-    const d = have(type);
+
+  async function removeDoc(d) {
+    if (!window.confirm(`Remove ${d.file_name || "this file"}?`)) return;
+    setBusy(d.doc_type);
+    await supabase.from("supplier_documents").delete().eq("id", d.id);
+    onChanged();
+    setBusy(null);
+  }
+
+  async function toggleOrganic(v) {
+    await supabase.from("suppliers").update({ sells_organic: v }).eq("id", supplier.id);
+    onChanged(true);
+  }
+
+  const mini = { border: "1px solid #e2e8f0", borderRadius: 7, padding: "5px 10px", fontSize: 11, color: "#64748b", cursor: "pointer", background: "white", fontFamily: "inherit" };
+
+  function Slot({ s }) {
+    const d = docs.find(x => x.doc_type === s.type);
+    const working = busy === s.type;
     return (
-      <div style={slotStyle}>
-        <div><b style={{ display: "block", fontSize: 13 }}>{title}</b>
-          <span style={{ color: d ? "#166534" : "#94a3b8", fontSize: 11.5 }}>{d ? `Uploaded · ${d.file_name}` : hint}</span></div>
-        <label style={{ background: "none", color: "#0D1F3C", border: "1px solid #e2e8f0", borderRadius: 7, padding: "7px 13px", fontSize: 12, cursor: "pointer" }}>
-          {busy ? "Uploading…" : d ? "Replace" : "Choose file"}
-          <input type="file" accept=".pdf,.png,.jpg,.jpeg" style={{ display: "none" }} disabled={busy}
-            onChange={(e) => upload(e.target.files?.[0], type, title)} />
-        </label>
+      <div style={{ ...slotStyle, border: d ? "1px solid #e2e8f0" : "1px dashed #e2e8f0" }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#0D1F3C" }}>{s.title}</div>
+          <div style={{ fontSize: 11, color: d ? "#166534" : "#94a3b8", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {working ? "Uploading…" : d ? `${d.label && d.label !== s.title ? d.label + " · " : ""}${d.file_name}` : s.hint}
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
+          {s.standards && !d && (
+            <select value={standard} onChange={e => setStandard(e.target.value)} style={{ ...mini, padding: "5px 6px" }}>
+              {s.standards.map(x => <option key={x}>{x}</option>)}
+            </select>
+          )}
+          {d && <button style={mini} onClick={() => window.open(d.file_url, "_blank")}>View</button>}
+          <label style={{ ...mini, display: "inline-block" }}>
+            {d ? "Replace" : "Choose file"}
+            <input type="file" accept=".pdf,.png,.jpg,.jpeg" style={{ display: "none" }} disabled={working}
+              onChange={e => { upload(e.target.files?.[0], s.type, s.standards ? standard : s.title); e.target.value = ""; }} />
+          </label>
+          {d && <button style={{ ...mini, color: "#be123c" }} onClick={() => removeDoc(d)}>✕</button>}
+        </div>
       </div>
     );
-  };
+  }
+
+  function MultiSlot({ type, title, accept, note }) {
+    const mine = docs.filter(d => d.doc_type === type);
+    const working = busy === type;
+    return (
+      <div style={{ marginBottom: 10 }}>
+        <div style={{ ...slotStyle, border: "1px dashed #e2e8f0" }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#0D1F3C" }}>{title}</div>
+            <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{working ? "Uploading…" : note}</div>
+          </div>
+          <label style={{ ...mini, display: "inline-block", flexShrink: 0 }}>
+            + Add
+            <input type="file" accept={accept} style={{ display: "none" }} disabled={working}
+              onChange={e => { upload(e.target.files?.[0], type, title, true); e.target.value = ""; }} />
+          </label>
+        </div>
+        {mine.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "0 2px 4px" }}>
+            {mine.map(d => (
+              <span key={d.id} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#EEF4FF", border: "1px solid #bfd6f6", borderRadius: 20, padding: "4px 10px", fontSize: 11, color: "#1e40af", maxWidth: 240 }}>
+                <span onClick={() => window.open(d.file_url, "_blank")} style={{ cursor: "pointer", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.file_name}</span>
+                <button onClick={() => removeDoc(d)} style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 12, padding: 0, lineHeight: 1 }}>✕</button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 12, padding: 18 }}>
-      <p style={{ marginTop: 0, marginBottom: 14, fontSize: 12.5, color: "#94a3b8" }}>Shared across all your products. These also appear on your company profile.</p>
-      <Slot type="gmp" title="GMP certificate" hint="Not uploaded" />
-      <Slot type="iso" title="ISO certificate" hint="Not uploaded" />
-      <Slot type="profile" title="Company profile / brochure" hint="Not uploaded" />
+      <p style={{ marginTop: 0, marginBottom: 16, fontSize: 12.5, color: "#94a3b8", lineHeight: 1.6 }}>
+        Shared across all your products. Completing these makes you a <b style={{ color: "#0D1F3C" }}>Qualified Supplier</b> — buyers see the badge, and our team can quote you without chasing paperwork.
+      </p>
+
+      {QUAL_GROUPS.filter(g => !g.organicOnly || organic).map(g => (
+        <div key={g.key} style={{ marginBottom: 6 }}>
+          <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#94a3b8", margin: "14px 0 8px" }}>{g.title}</div>
+          {g.slots.map(s => <Slot key={s.type} s={s} />)}
+        </div>
+      ))}
+
+      <label style={{ display: "flex", alignItems: "center", gap: 9, margin: "14px 0", fontSize: 12.5, color: "#475569", cursor: "pointer" }}>
+        <input type="checkbox" checked={organic} onChange={e => toggleOrganic(e.target.checked)} style={{ width: 15, height: 15 }} />
+        We supply certified organic products
+      </label>
+
+      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#94a3b8", margin: "14px 0 8px" }}>Your facility</div>
+      <MultiSlot type="facility_photo" title="Facility photos" accept=".png,.jpg,.jpeg,.webp"
+        note="Production floor, warehouse, QC lab — buyers trust what they can see" />
+
+      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#94a3b8", margin: "14px 0 8px" }}>Anything else</div>
+      <MultiSlot type="other" title="Other documents" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.doc,.docx"
+        note="Company profile, price list, audit reports" />
+
+      {err && <div style={{ color: "#be123c", fontSize: 12, marginTop: 10 }}>{err}</div>}
     </div>
   );
 }
@@ -595,6 +739,73 @@ function ProductDrawer({ sp, supplier, email, onClose, onSaved }) {
               : <button onClick={setInactive} style={{ background: "none", border: "none", color: "#be123c", fontSize: 11.5, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Stop offering this product</button>}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── GETTING STARTED ────────────────────────────────────────────────────────────
+// A newly approved supplier lands on four tabs and a table with nothing telling
+// them what actually matters. Every step here is derived from data we already
+// have, so nothing needs tracking, and the whole block disappears once done.
+// None of it blocks selling — it's a nudge, not a gate.
+function GettingStarted({ supplier, products, companyDocs, onGo }) {
+  const hasProduct = products.length > 0;
+  const hasCoa = products.some(p => (p.supplier_product_documents || []).some(d => d.doc_type === "coa"));
+  const has = t => companyDocs.some(d => d.doc_type === t);
+  const organic = !!supplier.sells_organic;
+
+  const steps = [
+    { done: true, label: "Apply to supply",
+      hint: supplier.status === "active" ? "Approved" : "We're reviewing it now" },
+    { done: hasProduct, label: "Add your first product",
+      hint: "Buyers can't find you without one", cta: "Add", go: "add" },
+    { done: hasCoa, label: "Attach a Certificate of Analysis",
+      hint: "The first thing buyers ask for", cta: "Attach", go: "list" },
+    { done: has("incorporation") && has("fssai_fda"),
+      label: "Incorporation certificate and FSSAI / FDA",
+      hint: "Proves who you are and where you're registered", cta: "Upload", go: "docs" },
+    { done: has("food_facility") && has("haccp"),
+      label: "Facility registration and HACCP",
+      hint: "Where you make it, and how you keep it safe", cta: "Upload", go: "docs" },
+    { done: has("quality_system"),
+      label: "A quality system certificate",
+      hint: "ISO, BRC, FSSC or SQF — any one", cta: "Upload", go: "docs" },
+    { done: has("facility_photo") && (!organic || (has("organic_cert") && has("organic_list"))),
+      label: organic ? "Facility photos and organic certification" : "Photos of your facility",
+      hint: "Buyers trust what they can see", cta: "Add", go: "docs" },
+  ];
+  const done = steps.filter(s => s.done).length;
+  if (done === steps.length) return null;
+
+  const next = steps.find(s => !s.done);
+
+  return (
+    <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 12, padding: "18px 20px", marginBottom: 22 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 7, gap: 12 }}>
+        <div style={{ fontSize: 15, fontWeight: 600, color: "#0D1F3C" }}>Become a Qualified Supplier</div>
+        <div style={{ fontSize: 12, color: "#64748b", whiteSpace: "nowrap" }}>{done} of {steps.length}</div>
+      </div>
+      <div style={{ height: 4, background: "#f1f5f9", borderRadius: 2, overflow: "hidden", marginBottom: 14 }}>
+        <div style={{ width: `${(done / steps.length) * 100}%`, height: "100%", background: "#1877F2", transition: "width .3s" }} />
+      </div>
+      {steps.map((s, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 11, padding: "10px 0", borderTop: i === 0 ? "none" : "1px solid #f8fafc" }}>
+          <span style={{ fontSize: 16, color: s.done ? "#16a34a" : "#cbd5e1", flexShrink: 0, lineHeight: 1 }}>{s.done ? "✓" : "○"}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13.5, color: s.done ? "#94a3b8" : "#0D1F3C", textDecoration: s.done ? "line-through" : "none" }}>{s.label}</div>
+            {!s.done && s.hint && <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 2 }}>{s.hint}</div>}
+          </div>
+          {!s.done && s.cta && (
+            <button onClick={() => onGo(s.go)}
+              style={{ background: s === next ? "#0D1F3C" : "white", color: s === next ? "white" : "#64748b", border: s === next ? "none" : "1px solid #d0d7e5", borderRadius: 7, padding: "7px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>
+              {s.cta}
+            </button>
+          )}
+        </div>
+      ))}
+      <div style={{ marginTop: 12, paddingTop: 11, borderTop: "1px solid #f1f5f9", fontSize: 11.5, color: "#94a3b8", lineHeight: 1.6 }}>
+        Nothing here stops you selling. Qualified suppliers get quoted faster because our team isn't chasing paperwork.
       </div>
     </div>
   );
@@ -818,6 +1029,7 @@ export default function Supplier() {
   // Withdrawn products stay on the record but shouldn't pad the headline count —
   // otherwise the four tiles don't add up and it looks like something is missing.
   const listed   = products.filter((p) => p.status !== "inactive").length;
+  const qual     = qualify(supplier, companyDocs);
   const TABS = [["list", "My list"], ["add", "Add a product"], ["excel", "Upload Excel"], ["cat", "Add from catalogue"]];
   const useCatalogueProduct = async (p) => {
     try {
@@ -844,6 +1056,9 @@ export default function Supplier() {
               ) : (
                 <span style={{ display: "inline-block", background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.4)", color: "#fbbf24", fontSize: 9, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", padding: "3px 10px", borderRadius: 20, marginTop: 8 }}>⏳ Awaiting approval</span>
               )}
+              {qual.qualified && (
+                <span style={{ display: "inline-block", marginLeft: 7, background: "rgba(255,255,255,0.14)", border: "1px solid rgba(255,255,255,0.3)", color: "#fff", fontSize: 9, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", padding: "3px 10px", borderRadius: 20, marginTop: 8 }}>✓ Qualified</span>
+              )}
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <button onClick={() => setTab("add")} style={{ background: "#1877F2", color: "white", border: "none", borderRadius: 7, padding: "8px 16px", fontSize: 12, fontWeight: 500, cursor: "pointer" }}>+ Add product</button>
@@ -859,6 +1074,19 @@ export default function Supplier() {
             everything goes live to buyers once our team approves your account. We'll email you when you're approved.
           </div>
         )}
+        <GettingStarted
+          supplier={supplier}
+          products={products}
+          companyDocs={companyDocs}
+          onGo={target => {
+            if (target === "docs") {
+              document.getElementById("company-docs")?.scrollIntoView({ behavior: "smooth", block: "center" });
+            } else {
+              setTab(target);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+          }}
+        />
         {/* Stats */}
         <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 24 }}>
           {[["Approved", approved, "#22c55e"], ["Pending review", pending, "#f59e0b"], ["Needs changes", rejected, "#be123c"], ["Total products", listed, "#1877F2"]].map(([label, val, color]) => (
@@ -948,8 +1176,14 @@ export default function Supplier() {
                 <p style={{ fontSize: 12.5, color: "#94a3b8" }}>For now, add products one at a time under <b>Add a product</b>, or pick from our catalogue.</p>
               </div>
             )}
-            <div style={{ ...sectionStyle, marginTop: 26 }}>Company documents</div>
-            <CompanyDocs supplier={supplier} email={session.user.email} docs={companyDocs} onChanged={() => loadCompanyDocs(supplier.id)} />
+            <div id="company-docs" style={{ ...sectionStyle, marginTop: 26 }}>Company documents</div>
+            <CompanyDocs supplier={supplier} email={session.user.email} docs={companyDocs}
+              onChanged={(reloadSupplier) => {
+                loadCompanyDocs(supplier.id);
+                // Ticking the organic box changes which slots are required, so
+                // the supplier row itself has to come back too.
+                if (reloadSupplier) init(session.user.email, { silent: true });
+              }} />
           </div>
         </div>
       </div>
