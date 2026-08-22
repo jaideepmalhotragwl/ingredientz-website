@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase.js";
-import { sendCustomerAcknowledgment } from "../lib/enquiryEmail.js";
 import CountryPhoneFields from "../components/CountryPhone.jsx";
 
 export default function Enquiry({ lang, cart, onRemoveFromCart, onClearCart }) {
@@ -34,6 +33,9 @@ export default function Enquiry({ lang, cart, onRemoveFromCart, onClearCart }) {
 
   async function submit(e) {
     e.preventDefault();
+    // Company name is required. Without it the enquiry lands with an email
+    // address in the company field, which then has to be cleaned up by hand.
+    if (!form.company.trim()) { setError("Company name is required"); return; }
     if (!form.email) { setError("Email is required"); return; }
     if (!loc.iso2) { setError("Please select your country"); return; }
     if (!loc.national.trim()) { setError("Phone number is required"); return; }
@@ -75,12 +77,43 @@ export default function Enquiry({ lang, cart, onRemoveFromCart, onClearCart }) {
         }] : [])
       ];
 
-      // Create enquiry in CRM
+      const phoneFull = `${loc.dial} ${loc.national}`.trim();
+
+      // Match this buyer to an existing company and contact, or create both.
+      // Same function the CRM and the inbound parser use, so the rule lives
+      // in one place. A failure here must not lose the enquiry, so it is
+      // wrapped — the enquiry still saves, just without the links.
+      let companyId = null, customerId = null;
+      try {
+        const { data: match, error: matchErr } = await supabase.rpc(
+          "resolve_company_and_contact",
+          {
+            p_email:        form.email.trim().toLowerCase(),
+            p_company_name: form.company.trim(),
+            p_contact_name: form.contact.trim() || null,
+            p_country_iso2: loc.iso2,
+            p_phone:        phoneFull || null,
+            p_created_by:   "website",
+          }
+        );
+        if (!matchErr && match) {
+          companyId  = match.company_id  ?? null;
+          customerId = match.customer_id ?? null;
+        }
+      } catch (mErr) {
+        console.error("Company match failed (enquiry still saved):", mErr);
+      }
+
+      // Create enquiry in CRM.
+      // The customer acknowledgment and the sales alert are BOTH sent by the
+      // notify_new_enquiry() trigger on this table — do not send email from here.
       const { data: enquiry, error: enqErr } = await supabase.from("enquiries").insert({
-        customer_name: form.company || form.email,
+        company_id: companyId,
+        customer_id: customerId,
+        customer_name: form.company.trim(),
         contact_person: form.contact || form.company,
         email: form.email,
-        phone: `${loc.dial} ${loc.national}`.trim(),
+        phone: phoneFull,
         phone_dial: loc.dial,
         phone_national: loc.national,
         country: loc.name,
@@ -94,20 +127,6 @@ export default function Enquiry({ lang, cart, onRemoveFromCart, onClearCart }) {
       }).select().single();
 
       if (enqErr) throw enqErr;
-
-      // Send the customer an instant branded acknowledgment via Resend.
-      // Wrapped so that even if the email hiccups, the enquiry is still saved
-      // and the customer still sees the success screen.
-      try {
-        const greetingName = form.contact || form.company || "there";
-        await sendCustomerAcknowledgment({
-          toEmail: form.email,
-          greetingName,
-          products,
-        });
-      } catch (ackErr) {
-        console.error("Acknowledgment email failed (enquiry still saved):", ackErr);
-      }
 
       onClearCart();
       setDone(true);
@@ -155,7 +174,7 @@ export default function Enquiry({ lang, cart, onRemoveFromCart, onClearCart }) {
             <div>
               <h2 style={{ fontSize: 16, fontWeight: 600, color: "#0D1F3C", marginBottom: 20 }}>Your Details</h2>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
-                {[["Company Name","company","text","Acme Nutrition Ltd"],["Contact Person","contact","text","John Smith"],["Business Email *","email","email","john@acmenutrition.com"]].map(([label,key,type,ph]) => (
+                {[["Company Name *","company","text","Acme Nutrition Ltd"],["Contact Person","contact","text","John Smith"],["Business Email *","email","email","john@acmenutrition.com"]].map(([label,key,type,ph]) => (
                   <div key={key} style={{ gridColumn: key === "email" ? "span 2" : "span 1" }}>
                     <label style={{ fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: 0.5, display: "block", marginBottom: 5 }}>{label}</label>
                     <input type={type} value={form[key]} onChange={e => setF(key, e.target.value)} placeholder={ph}
