@@ -15,6 +15,7 @@ import BlogPost from "./pages/BlogPost.jsx";
 import About from "./pages/About.jsx";
 import Contact from "./pages/Contact.jsx";
 import FormulaTool from "./pages/FormulaTool.jsx";
+import Unsubscribe from "./pages/Unsubscribe.jsx";
 import "./index.css";
 export default function App() {
   const [lang, setLang] = useState("EN");
@@ -42,6 +43,10 @@ export default function App() {
             <Route path="/blog/:slug" element={<BlogPost/>}/>
             <Route path="/about" element={<About/>}/>
             <Route path="/contact" element={<Contact/>}/>
+            {/* Reached from the footer of every follow-up email. Renders
+                without the cart or language props — it must work for
+                someone who has never used the site. */}
+            <Route path="/unsubscribe" element={<Unsubscribe/>}/>
             <Route path="*" element={
               <div style={{ minHeight:"60vh", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:12 }}>
                 <div style={{ fontFamily:"'DM Serif Display',serif", fontSize:64, color:"#e2e8f0" }}>404</div>
