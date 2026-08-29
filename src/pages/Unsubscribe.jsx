@@ -1,6 +1,14 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { supabase } from "../lib/supabaseEnquiry.js";
+
+// Calls the RPC endpoint directly rather than importing a shared client.
+// This page is reached by people who may never have loaded the rest of
+// the site, and it must not fail to build because a helper moved.
+// The anon key is already public in the bundle, so nothing is exposed
+// by having it here — and redeem_unsubscribe only ever acts on a token
+// it is given, never on anything the caller chooses.
+const SUPA_URL = "https://eytoryygkxjslfvsqanl.supabase.co";
+const SUPA_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5dG9yeXlna3hqc2xmdnNxYW5sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NDA5MTUsImV4cCI6MjA5MDMxNjkxNX0.txYTl0Q06mKSfWGmWc8cOTmCN46tLcxF9_7RhBUHBRY";
 
 /**
  * Unsubscribe — redeems the token from a follow-up email.
@@ -27,9 +35,17 @@ export default function Unsubscribe() {
   async function confirm() {
     setState("working");
     try {
-      const { data, error } = await supabase.rpc("redeem_unsubscribe", { p_token: token });
-      if (error) throw error;
-      if (!data?.ok) { setState("error"); return; }
+      const res = await fetch(`${SUPA_URL}/rest/v1/rpc/redeem_unsubscribe`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPA_ANON,
+          Authorization: `Bearer ${SUPA_ANON}`,
+        },
+        body: JSON.stringify({ p_token: token }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) { setState("error"); return; }
       setResult(data);
       setState("done");
     } catch (e) {
