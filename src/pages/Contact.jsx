@@ -2,11 +2,12 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase.js";
 import { SEO, PAGE_SEO } from "../components/SEO.jsx";
 
-const RESEND_KEY = "re_5zF5tNDR_759Q9NboE6v88NoCmRiDQtdY";
+const RESEND_KEY = ""; // old key revoked 11 Nov 2026 — contact form needs re-wiring (see note)
 
 const LOCATIONS = [
   { id:"dover",    name:"Dover, DE",      sub:"Registered Office", lon:-75.5,  lat:39.2,  type:"main", flag:"🇺🇸" },
-  { id:"grenoaks", name:"Green Oaks, IL", sub:"Warehouse",         lon:-87.8,  lat:42.3,  type:"sec",  flag:"🇺🇸" },
+  { id:"lee",      name:"Lee, MA",        sub:"Warehouse",         lon:-73.25, lat:42.30, type:"sec",  flag:"🇺🇸" },
+  { id:"fresno",   name:"Fresno, CA",     sub:"Warehouse",         lon:-119.79,lat:36.74, type:"sec",  flag:"🇺🇸" },
   { id:"cologne",  name:"Cologne",        sub:"Europe Office",     lon:6.96,   lat:50.94, type:"main", flag:"🇩🇪" },
   { id:"mumbai",   name:"Mumbai",         sub:"India HQ",          lon:72.88,  lat:19.08, type:"main", flag:"🇮🇳" },
   { id:"indore",   name:"Indore",         sub:"India",             lon:75.86,  lat:22.72, type:"sec",  flag:"🇮🇳" },
@@ -141,7 +142,7 @@ function WorldMap() {
       <svg ref={svgRef} style={{ width:"100%", height:"auto", display:"block" }}/>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:10, marginTop:16 }}>
         {[
-          ["🇺🇸","United States","Dover, DE — HQ\nGreen Oaks, IL — Warehouse"],
+          ["🇺🇸","United States","Dover, DE — HQ\nLee, MA · Fresno, CA — Warehouses"],
           ["🇩🇪","Europe","Cologne, Germany"],
           ["🇮🇳","India","Mumbai · Indore · Haridwar"],
           ["🇦🇪🇪🇬","Middle East & Africa","Dubai, UAE · Egypt"],
@@ -268,13 +269,13 @@ export default function Contact() {
                   ["📩","General Contact","contact@ingredientz.co","For general queries and partnerships"],
                   ["📞","Phone — USA","+1 270 721 5321","Mon–Fri, 9am–6pm CT"],
                   ["🏢","Registered Office","8 The Green, Ste A, Dover, DE 19901, USA","Ingredientz Inc."],
-                  ["🏭","Warehouse — USA","13825 W Business Center Dr, Suite B, Green Oaks, IL 60045","United States"],
+                  ["🏭","Warehouses — USA","705 Pleasant Street, Lee, MA 01238\n2855 S East Ave, Fresno, CA 93725-1908","United States"],
                 ].map(([icon, title, value, desc]) => (
                   <div key={title} style={{ background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:10, padding:"12px 14px", display:"flex", gap:12, alignItems:"flex-start" }}>
                     <div style={{ width:36, height:36, borderRadius:8, background:"#EEF4FF", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, flexShrink:0 }}>{icon}</div>
                     <div>
                       <div style={{ fontSize:10, fontWeight:600, color:"#94a3b8", letterSpacing:1, textTransform:"uppercase", marginBottom:2 }}>{title}</div>
-                      <div style={{ fontSize:13, fontWeight:500, color:"#0D1F3C", marginBottom:2 }}>{value}</div>
+                      <div style={{ fontSize:13, fontWeight:500, color:"#0D1F3C", marginBottom:2, whiteSpace:"pre-line" }}>{value}</div>
                       <div style={{ fontSize:11, color:"#64748b" }}>{desc}</div>
                     </div>
                   </div>
