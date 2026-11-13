@@ -23,7 +23,6 @@ export function Footer() {
               <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:16 }}>
                 {[
                   ["🇺🇸","Registered Office","Ingredientz Inc, 8 The Green, Ste A, Dover, DE 19901, USA"],
-                  ["🇺🇸","Warehouse — IL","13825 W Business Center Drive, Suite B, Green Oaks, IL 60045, USA"],
                   ["🇺🇸","Warehouse — MA","705 Pleasant Street, Lee, MA 01238, USA"],
                   ["🇺🇸","Warehouse — CA","2855 S East Ave, Fresno, CA 93725-1908, USA"],
                   ["🇮🇳","India","Mumbai · Indore · Haridwar"],
