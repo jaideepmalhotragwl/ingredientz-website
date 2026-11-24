@@ -8,9 +8,14 @@
 // and Google can index them.
 //
 // This does NOT touch your 5 hero pages, your React app, or the database.
+//
+// SEO content files (optional, one per product):  seo-content/<slug>.json
+// When a product has one, its page gets the richer layout: custom title and
+// description, sections, a spec table, FAQs and FAQ markup. Products without a
+// file keep the standard layout. See seo-content/README.md for the format.
 
 import { createClient } from "@supabase/supabase-js";
-import { writeFileSync, mkdirSync } from "fs";
+import { writeFileSync, mkdirSync, readFileSync, readdirSync, existsSync } from "fs";
 
 const supabase = createClient(
   "https://eytoryygkxjslfvsqanl.supabase.co",
@@ -19,6 +24,40 @@ const supabase = createClient(
 
 const SITE_URL = "https://www.ingredientz.co";
 const OUT_DIR = "public/products";
+const SEO_DIR = "seo-content";
+const RELATED_COUNT = 6;
+
+// ── SEO content files ─────────────────────────────────────────────────────────
+// Returns { "<slug>": { ...content } }. A file that cannot be read is skipped
+// with a warning, so one bad file never breaks the build.
+export function loadSeoContent(dir = SEO_DIR) {
+  const out = {};
+  if (!existsSync(dir)) return out;
+  for (const file of readdirSync(dir)) {
+    if (!file.endsWith(".json")) continue;
+    try {
+      const data = JSON.parse(readFileSync(`${dir}/${file}`, "utf8"));
+      const slug = data.slug || file.replace(/\.json$/, "");
+      out[slug] = data;
+    } catch (e) {
+      console.warn(`  ⚠ skipped SEO content file ${file}: ${e.message}`);
+    }
+  }
+  return out;
+}
+
+// Up to RELATED_COUNT other products from the same category, taken in name
+// order starting just after this product, so every page links to different ones.
+export function pickRelated(product, all) {
+  const same = all.filter(x => x.category_id === product.category_id && x.slug);
+  const i = same.findIndex(x => x.slug === product.slug);
+  if (i < 0 || same.length < 2) return [];
+  const picked = [];
+  for (let k = 1; k < same.length && picked.length < RELATED_COUNT; k++) {
+    picked.push(same[(i + k) % same.length]);
+  }
+  return picked;
+}
 
 // ── small helpers ─────────────────────────────────────────────────────────────
 // Escape text destined for HTML body / attributes.
@@ -42,7 +81,7 @@ function jsonLd(obj) {
 }
 
 // ── the page template ─────────────────────────────────────────────────────────
-function renderPage(p) {
+export function renderPage(p, { seo = null, related = [] } = {}) {
   const slug      = p.slug;
   const name      = p.name || "Nutraceutical Ingredient";
   const cat       = p.product_categories?.name || "Nutraceutical Ingredients";
@@ -57,13 +96,20 @@ function renderPage(p) {
   const specs     = p.specifications && typeof p.specifications === "object"
                       ? Object.entries(p.specifications).filter(([k]) => k)
                       : [];
-  const tags      = Array.isArray(p.tags) ? p.tags.filter(Boolean) : [];
+  const dbTags    = Array.isArray(p.tags) ? p.tags.filter(Boolean) : [];
+  const tags      = seo && Array.isArray(seo.tags) && seo.tags.length ? seo.tags.filter(Boolean) : dbTags;
+  const h1        = (seo && seo.h1) || name;
+  const lead      = (seo && seo.lead) || shortDesc;
+  const faqs      = seo && Array.isArray(seo.faqs) ? seo.faqs.filter(f => f && f.q && f.a) : [];
 
   // Mirror generateProductSEO() from src/components/SEO.jsx
-  const title = `${name} — Wholesale B2B Supplier | Ingredientz`;
-  const metaDesc = shortDesc
+  // (a seo-content file may replace the title and description)
+  const defaultTitle = `${name} — Wholesale B2B Supplier | Ingredientz`;
+  const defaultMeta = shortDesc
     ? `${shortDesc} Available in bulk wholesale quantities.${moq ? ` MOQ: ${moq}.` : ""} Request a quote within 48 hours from Ingredientz.`
     : `Buy ${name} wholesale from verified manufacturers. ${cat} category. B2B pricing, CoA & TDS available. 48h quotation from Ingredientz — The Nutraceutical Superfactory.`;
+  const title    = (seo && seo.seo_title) || defaultTitle;
+  const metaDesc = (seo && seo.meta_description) || defaultMeta;
   const keywords = `${name}, ${name} wholesale, ${name} bulk supplier, ${name} manufacturer, ${cat.toLowerCase()} supplier${tags.length ? ", " + tags.join(", ") : ""}, nutraceutical ingredients wholesale`;
 
   // Product JSON-LD (mirrors the Product schema in SEO.jsx)
@@ -71,7 +117,7 @@ function renderPage(p) {
     "@context": "https://schema.org",
     "@type": "Product",
     "name": name,
-    "description": shortDesc || metaDesc,
+    "description": lead || metaDesc,
     "image": ogImage,
     "brand": { "@type": "Brand", "name": "Ingredientz" },
     "category": cat,
@@ -80,6 +126,9 @@ function renderPage(p) {
       "@type": "Offer",
       "availability": "https://schema.org/InStock",
       "priceCurrency": "USD",
+      // Google needs a price here. It is only added when the SEO content file
+      // gives a real published "from" price; it is never invented.
+      ...(seo && Number(seo.price_from_usd) > 0 ? { "price": String(seo.price_from_usd), "url": pageUrl } : {}),
       "seller": { "@type": "Organization", "name": "Ingredientz Inc", "url": SITE_URL }
     },
     ...(p.cas_number ? { "identifier": p.cas_number } : {}),
@@ -98,13 +147,29 @@ function renderPage(p) {
     ]
   };
 
+  // FAQ JSON-LD (only when the page shows FAQs)
+  const faqLd = faqs.length ? {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": faqs.map(f => ({
+      "@type": "Question",
+      "name": f.q,
+      "acceptedAnswer": { "@type": "Answer", "text": f.a }
+    }))
+  } : null;
+
   // ── body sections ──
-  const keyDetails = [
+  // Key details: a seo-content file may supply its own four boxes. Otherwise
+  // MOQ and Unit always show, and CAS / HSN show only when they have a value.
+  const seoDetails = seo && Array.isArray(seo.key_details)
+    ? seo.key_details.filter(d => Array.isArray(d) && d[0] && d[1])
+    : [];
+  const keyDetails = (seoDetails.length ? seoDetails : [
     ["MOQ", moq || "Request quote"],
     ["Unit", unit],
-    ["CAS Number", p.cas_number || "—"],
-    ["HSN Code", p.hsn_code || "—"]
-  ].map(([k, v]) => `
+    ...(p.cas_number ? [["CAS Number", p.cas_number]] : []),
+    ...(p.hsn_code ? [["HSN Code", p.hsn_code]] : [])
+  ]).map(([k, v]) => `
         <div class="kd">
           <div class="kd-label">${esc(k)}</div>
           <div class="kd-value">${esc(v)}</div>
@@ -129,6 +194,71 @@ function renderPage(p) {
             ${specs.map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("")}
           </tbody>
         </table>
+      </section>` : "";
+
+  // Rich sections from the seo-content file. Each section may carry a heading,
+  // paragraphs, bullets ([label, text] pairs or plain strings) and a table.
+  const renderTable = t => {
+    const cols = Array.isArray(t.columns) ? t.columns : [];
+    const rows = Array.isArray(t.rows) ? t.rows.filter(r => Array.isArray(r) && r.length) : [];
+    if (!rows.length) return "";
+    return `
+        <div class="tablewrap">
+        <table class="specs${cols.length ? " multi" : ""}">
+          ${cols.length ? `<thead><tr>${cols.map(c => `<th>${esc(c)}</th>`).join("")}</tr></thead>` : ""}
+          <tbody>
+            ${rows.map(r => `<tr><th>${esc(r[0])}</th>${r.slice(1).map((c, i) =>
+              `<td${r.length === 2 && cols.length > 2 && i === 0 ? ` colspan="${cols.length - 1}"` : ""}>${esc(c)}</td>`).join("")}</tr>`).join("")}
+          </tbody>
+        </table>
+        </div>`;
+  };
+  const renderBullets = list => `
+        <ul>
+          ${list.map(b => Array.isArray(b)
+            ? `<li><strong>${esc(b[0])}</strong> ${esc(b[1] ?? "")}</li>`
+            : `<li>${esc(b)}</li>`).join("")}
+        </ul>`;
+  const seoSections = seo && Array.isArray(seo.sections) ? seo.sections : [];
+  const richHtml = seo ? [
+    ...(Array.isArray(seo.intro) && seo.intro.length ? [`
+      <section class="block">
+        ${seo.intro.map(t => `<p>${esc(t)}</p>`).join("")}
+      </section>`] : []),
+    ...seoSections.map(s => `
+      <section class="block">
+        ${s.heading ? `<h2>${esc(s.heading)}</h2>` : ""}
+        ${(Array.isArray(s.paragraphs) ? s.paragraphs : []).map(t => `<p>${esc(t)}</p>`).join("")}
+        ${Array.isArray(s.bullets) && s.bullets.length ? renderBullets(s.bullets) : ""}
+        ${s.table ? renderTable(s.table) : ""}
+      </section>`),
+    ...(faqs.length ? [`
+      <section class="block faq">
+        <h2>Frequently asked questions</h2>
+        ${faqs.map(f => `<h3>${esc(f.q)}</h3>
+        <p>${esc(f.a)}</p>`).join("\n        ")}
+      </section>`] : []),
+    `
+      <section class="block">
+        <div class="cta-band">
+          <p>${esc(seo.cta || `Request a quote, a sample or the spec sheet for ${name}`)}</p>
+          <a class="cta" href="/enquiry">Request a Quote</a>
+        </div>
+      </section>`
+  ].join("") : "";
+
+  // Related products: real links between product pages, so Google can crawl
+  // from one product to the next. Shown on every product page.
+  const extraLinks = seo && Array.isArray(seo.related_links)
+    ? seo.related_links.filter(l => l && l.href && l.label)
+    : [];
+  const relatedHtml = (related.length || extraLinks.length) ? `
+      <section class="block">
+        <h2>Related products</h2>
+        <div class="related">
+          ${extraLinks.map(l => `<a href="${esc(l.href)}">${esc(l.label)}</a>`).join("")}
+          ${related.map(r => `<a href="/products/${esc(safeSlug(r.slug))}">${esc(r.name)}</a>`).join("")}
+        </div>
       </section>` : "";
 
   const imageHtml = firstImg
@@ -161,7 +291,8 @@ function renderPage(p) {
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet"/>
 <script type="application/ld+json">${jsonLd(ld)}</script>
-<script type="application/ld+json">${jsonLd(breadcrumbLd)}</script>
+<script type="application/ld+json">${jsonLd(breadcrumbLd)}</script>${faqLd ? `
+<script type="application/ld+json">${jsonLd(faqLd)}</script>` : ""}
 <style>
   :root{--navy:#0D1F3C;--teal:#6FE5C8;--ink:#0D1F3C;--muted:#64748b;--line:#e2e8f0;--bg:#f8fafc;--blue:#1877F2;}
   *{box-sizing:border-box;}
@@ -197,6 +328,21 @@ function renderPage(p) {
   table.specs th{text-align:left;width:42%;background:var(--bg);padding:10px 14px;font-size:13px;color:#475569;font-weight:600;border-bottom:1px solid var(--line);}
   table.specs td{padding:10px 14px;font-size:13px;border-bottom:1px solid var(--line);}
   table.specs tr:last-child th,table.specs tr:last-child td{border-bottom:none;}
+  .block p + p{margin-top:10px;}
+  .block ul{margin:0;padding-left:18px;font-size:14px;color:#475569;}
+  .block li{margin-bottom:8px;} .block li strong{color:var(--ink);}
+  .tablewrap{overflow-x:auto;}
+  table.specs.multi{min-width:520px;border-radius:0;}
+  table.specs.multi th{width:auto;}
+  table.specs thead th{background:var(--navy);color:#fff;}
+  table.specs td{vertical-align:top;}
+  .faq h3{font-size:14.5px;font-weight:600;margin:16px 0 4px;}
+  .faq h2 + h3{margin-top:0;}
+  .cta-band{background:var(--bg);border-radius:14px;padding:26px;text-align:center;}
+  .cta-band p{font-size:15px;color:var(--ink);margin:0 0 14px;font-weight:500;}
+  .related{display:flex;flex-wrap:wrap;gap:8px;}
+  .related a{border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--ink);}
+  .related a:hover{border-color:var(--blue);color:var(--blue);}
   footer{background:var(--navy);color:rgba(255,255,255,.6);font-size:12px;margin-top:40px;}
   footer .container{padding:28px 24px;}
   footer a{color:rgba(255,255,255,.8);}
@@ -226,16 +372,17 @@ function renderPage(p) {
       <div>${imageHtml}</div>
       <div>
         <div class="eyebrow">${esc(cat)}</div>
-        <h1>${esc(name)}</h1>
-        ${shortDesc ? `<p class="lead">${esc(shortDesc)}</p>` : ""}
+        <h1>${esc(h1)}</h1>
+        ${lead ? `<p class="lead">${esc(lead)}</p>` : ""}
         ${tagHtml}
         <div class="kd-grid">${keyDetails}</div>
         <a class="cta" href="/enquiry">Request a Quote</a>
         <p class="note">Commercial quotation provided within 48 hours.</p>
       </div>
     </div>
-    ${descHtml}
-    ${specsHtml}
+    ${seo ? richHtml : `${descHtml}
+    ${specsHtml}`}
+    ${relatedHtml}
   </main>
 
   <footer>
@@ -262,7 +409,14 @@ async function generate() {
 
   mkdirSync(OUT_DIR, { recursive: true });
 
-  let written = 0, skipped = 0;
+  const seoContent = loadSeoContent();
+  const seoSlugs = Object.keys(seoContent);
+  const known = new Set(products.map(p => safeSlug(p.slug)));
+  for (const s of seoSlugs) {
+    if (!known.has(s)) console.warn(`  ⚠ SEO content file for "${s}" matches no active product`);
+  }
+
+  let written = 0, skipped = 0, rich = 0;
   const seen = new Set();
 
   for (const p of products) {
@@ -271,12 +425,18 @@ async function generate() {
     if (seen.has(slug)) { skipped++; console.warn(`  ⚠ skipped (duplicate slug): ${slug}`); continue; }
     seen.add(slug);
 
-    writeFileSync(`${OUT_DIR}/${slug}.html`, renderPage(p));
+    const seo = seoContent[slug] || null;
+    if (seo) rich++;
+    writeFileSync(`${OUT_DIR}/${slug}.html`, renderPage(p, { seo, related: pickRelated(p, products) }));
     written++;
   }
 
   console.log(`✅ Generated ${written} product pages in ${OUT_DIR}/`);
+  console.log(`   ${rich} with SEO content from ${SEO_DIR}/`);
   if (skipped) console.log(`   ${skipped} skipped (missing or duplicate slug)`);
 }
 
-generate().catch(e => { console.error(e); process.exit(1); });
+// SEO_TEST=1 lets a test import renderPage() without contacting the database.
+if (!process.env.SEO_TEST) {
+  generate().catch(e => { console.error(e); process.exit(1); });
+}
