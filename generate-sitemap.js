@@ -3,7 +3,23 @@
 // Fetches all products and categories from Supabase and generates sitemap.xml
 
 import { createClient } from "@supabase/supabase-js";
-import { writeFileSync } from "fs";
+import { writeFileSync, readFileSync, readdirSync, existsSync } from "fs";
+
+// Dates from seo-content/<slug>.json ("updated": "YYYY-MM-DD"), so Google sees
+// a fresh date when a product page's SEO content changes.
+function seoDates(dir = "seo-content") {
+  const out = {};
+  if (!existsSync(dir)) return out;
+  for (const file of readdirSync(dir)) {
+    if (!file.endsWith(".json")) continue;
+    try {
+      const d = JSON.parse(readFileSync(`${dir}/${file}`, "utf8"));
+      const slug = d.slug || file.replace(/\.json$/, "");
+      if (/^\d{4}-\d{2}-\d{2}$/.test(d.updated || "")) out[slug] = d.updated;
+    } catch { /* a bad file must not break the sitemap */ }
+  }
+  return out;
+}
 
 const supabase = createClient(
   "https://eytoryygkxjslfvsqanl.supabase.co",
@@ -44,12 +60,17 @@ async function generateSitemap() {
   }));
 
   // Product pages
-  const productPages = (products || []).map(p => ({
-    url: `/products/${p.slug}`,
-    priority: "0.7",
-    changefreq: "weekly",
-    lastmod: p.updated_at ? p.updated_at.split("T")[0] : today
-  }));
+  const seoUpdated = seoDates();
+  const productPages = (products || []).map(p => {
+    const dbDate = p.updated_at ? p.updated_at.split("T")[0] : today;
+    const seoDate = seoUpdated[p.slug];
+    return {
+      url: `/products/${p.slug}`,
+      priority: "0.7",
+      changefreq: "weekly",
+      lastmod: seoDate && seoDate > dbDate ? seoDate : dbDate
+    };
+  });
 
   const allPages = [...staticPages, ...catPages, ...productPages];
 
