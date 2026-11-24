@@ -46,15 +46,43 @@ export function loadSeoContent(dir = SEO_DIR) {
   return out;
 }
 
-// Up to RELATED_COUNT other products from the same category, taken in name
-// order starting just after this product, so every page links to different ones.
+// Words too common in product names to say two products are related.
+const NAME_STOPWORDS = new Set([
+  "powder", "powdered", "extract", "extracts", "organic", "natural", "pure",
+  "with", "from", "based", "derived", "grade", "type", "bulk", "standardized",
+  "concentrate", "instant", "mesh", "sieve", "ratio", "root", "leaf", "seed",
+  "fruit", "whole", "premium", "feed", "food", "non", "free",
+  "oil", "and", "the", "for", "usp", "gmo", "nlt", "fat"
+]);
+
+// The meaningful words of a product name: "Coconut Water Powder" → coconut, water.
+export function nameWords(name) {
+  return [...new Set(String(name || "").toLowerCase().split(/[^a-z]+/)
+    .filter(w => w.length >= 3 && !NAME_STOPWORDS.has(w)))];
+}
+
+// Up to RELATED_COUNT other products to link to from a product page.
+// 1. Products that share a meaningful word in their name come first
+//    (Coconut Water Powder → Coconut Milk Powder), most shared words first.
+// 2. Any places left are filled from the same category, in name order starting
+//    just after this product, so every page links to different ones.
 export function pickRelated(product, all) {
+  const others = all.filter(x => x.slug && x.slug !== product.slug);
+  const words = nameWords(product.name);
+  const byName = others
+    .map(x => ({ x, score: nameWords(x.name).filter(w => words.includes(w)).length }))
+    .filter(o => o.score > 0)
+    .sort((a, b) => b.score - a.score || String(a.x.name).localeCompare(String(b.x.name)))
+    .map(o => o.x);
+  const picked = byName.slice(0, RELATED_COUNT);
+
   const same = all.filter(x => x.category_id === product.category_id && x.slug);
   const i = same.findIndex(x => x.slug === product.slug);
-  if (i < 0 || same.length < 2) return [];
-  const picked = [];
-  for (let k = 1; k < same.length && picked.length < RELATED_COUNT; k++) {
-    picked.push(same[(i + k) % same.length]);
+  if (i >= 0) {
+    for (let k = 1; k < same.length && picked.length < RELATED_COUNT; k++) {
+      const c = same[(i + k) % same.length];
+      if (!picked.some(p => p.slug === c.slug)) picked.push(c);
+    }
   }
   return picked;
 }
@@ -231,6 +259,7 @@ export function renderPage(p, { seo = null, related = [] } = {}) {
         ${(Array.isArray(s.paragraphs) ? s.paragraphs : []).map(t => `<p>${esc(t)}</p>`).join("")}
         ${Array.isArray(s.bullets) && s.bullets.length ? renderBullets(s.bullets) : ""}
         ${s.table ? renderTable(s.table) : ""}
+        ${s.note ? `<p class="tnote">${esc(s.note)}</p>` : ""}
       </section>`),
     ...(faqs.length ? [`
       <section class="block faq">
@@ -252,12 +281,18 @@ export function renderPage(p, { seo = null, related = [] } = {}) {
   const extraLinks = seo && Array.isArray(seo.related_links)
     ? seo.related_links.filter(l => l && l.href && l.label)
     : [];
-  const relatedHtml = (related.length || extraLinks.length) ? `
+  // Hand-picked links come first; automatic ones fill what is left, without
+  // repeating a page that is already linked.
+  const extraHrefs = new Set(extraLinks.map(l => l.href));
+  const autoLinks = related
+    .filter(r => !extraHrefs.has(`/products/${safeSlug(r.slug)}`))
+    .slice(0, Math.max(0, RELATED_COUNT - extraLinks.length));
+  const relatedHtml = (autoLinks.length || extraLinks.length) ? `
       <section class="block">
         <h2>Related products</h2>
         <div class="related">
           ${extraLinks.map(l => `<a href="${esc(l.href)}">${esc(l.label)}</a>`).join("")}
-          ${related.map(r => `<a href="/products/${esc(safeSlug(r.slug))}">${esc(r.name)}</a>`).join("")}
+          ${autoLinks.map(r => `<a href="/products/${esc(safeSlug(r.slug))}">${esc(r.name)}</a>`).join("")}
         </div>
       </section>` : "";
 
@@ -332,6 +367,7 @@ export function renderPage(p, { seo = null, related = [] } = {}) {
   .block ul{margin:0;padding-left:18px;font-size:14px;color:#475569;}
   .block li{margin-bottom:8px;} .block li strong{color:var(--ink);}
   .tablewrap{overflow-x:auto;}
+  .block p.tnote{margin-top:12px;font-size:13px;}
   table.specs.multi{min-width:520px;border-radius:0;}
   table.specs.multi th{width:auto;}
   table.specs thead th{background:var(--navy);color:#fff;}
