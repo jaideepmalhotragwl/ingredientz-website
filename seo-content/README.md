@@ -22,10 +22,10 @@ All fields are optional except `slug`.
 | `tags` | Small labels under the lead |
 | `key_details` | Up to four `[label, value]` boxes. Defaults to MOQ, Unit, CAS, HSN |
 | `intro` | Opening paragraphs |
-| `sections` | Each has `heading`, and any of `paragraphs`, `bullets`, `table` |
+| `sections` | Each has `heading`, and any of `paragraphs`, `bullets`, `table`, and a `note` shown under the table |
 | `faqs` | List of `{ "q": ..., "a": ... }`. Also written as FAQ markup |
 | `cta` | Line above the final Request a Quote button |
-| `related_links` | Extra links, `{ "href": ..., "label": ... }`, shown with related products |
+| `related_links` | Hand-picked links, `{ "href": ..., "label": ... }`. Shown first in Related products; automatic links fill the rest, up to six in total |
 | `price_from_usd` | A real published "from" price per unit. Adds a price to the product markup. Leave out unless the price is public |
 
 A bullet is either a plain string or a `[bold label, text]` pair.
@@ -37,3 +37,9 @@ spans all the value columns.
 - Only state facts that are true and that the company is happy to publish.
 - No health claims. Describe what the ingredient is and how it is used.
 - Never invent a price.
+
+## Related products
+
+Every product page links to up to six others. Products that share a
+meaningful word in their name come first (Coconut Water Powder links to
+Coconut Milk Powder), then products from the same category.
